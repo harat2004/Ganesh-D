@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a customer or admin user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "customer"] },
+        "mobile": { "type": "string" },
+        "address": { "type": "string" },
+        "isBlocked": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Item": {
+      "title": "Item",
+      "description": "Represents a product or service item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "service": { "type": "string" },
+        "price": { "type": "number" },
+        "showPriceToCustomer": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "service", "price"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Represents a customer order.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "mobile": { "type": "string" },
+        "address": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "itemName": { "type": "string" },
+              "service": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "totalQuantity": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "processing", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "items", "totalQuantity", "totalAmount", "status"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "shopName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "address": { "type": "string" },
+        "contactNumber": { "type": "string" },
+        "whatsappApiUrl": { "type": "string" },
+        "popupConfig": {
+          "type": "object",
+          "properties": {
+            "imageUrl": { "type": "string" },
+            "text": { "type": "string" },
+            "link": { "type": "string" },
+            "show": { "type": "boolean" }
+          }
+        },
+        "themeType": { "type": "string", "enum": ["type1", "type2", "type3"] }
+      }
+    },
+    "SocialLink": {
+      "title": "SocialLink",
+      "description": "Social media links.",
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of users."
+    },
+    "items": {
+      "schema": "Item",
+      "description": "Collection of items."
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Collection of orders."
+    },
+    "settings": {
+      "schema": "Settings",
+      "description": "Global settings document (usually one doc)."
+    },
+    "socialLinks": {
+      "schema": "SocialLink",
+      "description": "Collection of social media links."
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Customer & Admin Order Management System",
+  "description": "A comprehensive order management system with customer and admin panels, real-time order tracking, and WhatsApp notifications.",
+  "requestFramePermissions": []
+}
