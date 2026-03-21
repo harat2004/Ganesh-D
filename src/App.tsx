@@ -52,7 +52,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isAuthReady) {
+    if (isAuthReady && firebaseUser) {
       const unsubscribe = dbService.subscribeToDocument<Settings>('settings', 'global', async (data) => {
         if (!data && userData?.role === 'admin') {
           // Initialize default settings if they don't exist
@@ -75,8 +75,10 @@ const App: React.FC = () => {
         setSettings(data);
       });
       return () => unsubscribe();
+    } else {
+      setSettings(null);
     }
-  }, [isAuthReady, userData]);
+  }, [isAuthReady, userData, firebaseUser]);
 
   if (loading) {
     return (
