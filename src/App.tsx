@@ -94,9 +94,12 @@ const App: React.FC = () => {
 
   const displayUser = impersonatedUser || userData;
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const isAuthAction = urlParams.has('oobCode');
+
   return (
     <ErrorBoundary>
-      {!firebaseUser ? (
+      {(!firebaseUser || isAuthAction) ? (
         <Auth />
       ) : displayUser?.isBlocked ? (
         <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-4 text-center">

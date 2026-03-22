@@ -5,17 +5,22 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode,
+  applyActionCode
 } from 'firebase/auth';
 import { auth } from '../firebase';
 import { dbService } from '../services/db';
 import { User } from '../types';
-import { LogIn, UserPlus, Mail, Lock, Loader2, Chrome, KeyRound, AlertTriangle, Copy, Check } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, Loader2, Chrome, KeyRound, AlertTriangle, Copy, Check, ShieldCheck, MailCheck } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +29,96 @@ const Auth: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
+  // Auth Action States - Initialize from URL to prevent flash of login screen
+  const [resetCode, setResetCode] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('oobCode');
+  });
+  const [isResetMode, setIsResetMode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode')?.toLowerCase();
+    return (mode === 'resetpassword' || mode === 'action') && params.has('oobCode');
+  });
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mode')?.toLowerCase() === 'verifyemail' && params.has('oobCode');
+  });
+
+  useEffect(() => {
+    // Check for auth actions in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode')?.toLowerCase();
+    const actionCode = urlParams.get('oobCode');
+
+    if (actionCode) {
+      if (mode === 'resetpassword' || mode === 'action') {
+        verifyPasswordResetCode(auth, actionCode)
+          .then((email) => {
+            setMessage(`Resetting password for ${email}`);
+          })
+          .catch((err) => {
+            console.error('Reset code verification failed:', err);
+            if (err.code === 'auth/invalid-action-code' || err.code === 'auth/expired-action-code') {
+              setError('This password reset link has expired or has already been used.');
+            } else {
+              setError('Error verifying reset link: ' + err.message);
+            }
+            
+            if (mode === 'action') {
+              applyActionCode(auth, actionCode)
+                .then(() => {
+                  setMessage('Email verified successfully!');
+                  setIsResetMode(false);
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                })
+                .catch(() => {});
+            }
+          });
+      } else if (mode === 'verifyemail') {
+        setIsVerifyingEmail(true);
+        applyActionCode(auth, actionCode)
+          .then(() => {
+            setMessage('Email verified successfully! You can now sign in.');
+            setIsVerifyingEmail(false);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          })
+          .catch((err) => {
+            setError('Email verification failed: ' + err.message);
+            setIsVerifyingEmail(false);
+          });
+      }
+    }
+  }, []);
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password should be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      if (resetCode) {
+        await confirmPasswordReset(auth, resetCode, newPassword);
+        setMessage('Password has been reset successfully! You can now sign in.');
+        setIsResetMode(false);
+        setResetCode(null);
+        // Clear URL params
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const currentOrigin = window.location.origin;
 
@@ -62,6 +157,12 @@ const Auth: React.FC = () => {
       if (err.code === 'auth/network-request-failed') {
         setError('Network Error: Please check your internet or see Troubleshooting below.');
         setShowTroubleshoot(true);
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError(
+          'Firebase Error: Sign-in providers (Google/Email) are NOT enabled in your Firebase Console. ' +
+          'Please go to the link below and enable them.'
+        );
+        setShowTroubleshoot(true);
       } else {
         setError(err.message);
       }
@@ -97,6 +198,12 @@ const Auth: React.FC = () => {
     } catch (err: any) {
       if (err.code === 'auth/network-request-failed') {
         setError('Network Error: Please check your internet or see Troubleshooting below.');
+        setShowTroubleshoot(true);
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError(
+          'Firebase Error: Google Sign-in is NOT enabled in your Firebase Console. ' +
+          'Please go to the link below and enable it.'
+        );
         setShowTroubleshoot(true);
       } else {
         setError(err.message);
@@ -147,32 +254,99 @@ const Auth: React.FC = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all hover:scale-[1.01]">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </h1>
-          <p className="text-gray-500">
-            {isLogin ? 'Sign in to manage your orders' : 'Join us to start ordering'}
-          </p>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span className="font-bold">Error:</span>
-            </div>
-            <p className="break-words">{error}</p>
-            {error.includes('network-request-failed') && (
-              <button 
-                onClick={() => setShowTroubleshoot(true)}
-                className="text-xs font-bold underline text-left"
-              >
-                Show Troubleshooting Steps
-              </button>
-            )}
+        {isVerifyingEmail ? (
+          <div className="text-center py-8">
+            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900">Verifying Email...</h2>
+            <p className="text-gray-500 mt-2">Please wait while we confirm your email address.</p>
           </div>
-        )}
+        ) : isResetMode ? (
+          <div className="text-center">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-8 h-8 text-indigo-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h1>
+            <p className="text-gray-500 mb-8">Please enter your new password below.</p>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="password"
+                  placeholder="New Password"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="password"
+                  placeholder="Confirm New Password"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResetMode(false);
+                  setResetCode(null);
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                }}
+                className="text-sm text-gray-500 hover:underline"
+              >
+                Back to Login
+              </button>
+            </form>
+          </div>
+        ) : (
+          <>
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+                {isLogin ? 'Welcome Back' : 'Create Account'}
+              </h1>
+              <p className="text-gray-500">
+                {isLogin ? 'Sign in to manage your orders' : 'Join us to start ordering'}
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span className="font-bold">Error:</span>
+                </div>
+                <p className="break-words">{error}</p>
+                {(error.includes('network-request-failed') || error.includes('operation-not-allowed')) && (
+                  <button 
+                    onClick={() => setShowTroubleshoot(true)}
+                    className="text-xs font-bold underline text-left"
+                  >
+                    Show Troubleshooting Steps
+                  </button>
+                )}
+              </div>
+            )}
 
         {message && (
           <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
@@ -200,6 +374,19 @@ const Auth: React.FC = () => {
                 </button>
                 {connectionStatus === 'success' && <p className="mt-1 text-green-700 font-bold">Network is OK! Issue might be Firebase Domain Authorization.</p>}
                 {connectionStatus === 'error' && <p className="mt-1 text-red-700 font-bold">Network is BLOCKED! Check your internet or ad-blocker.</p>}
+              </li>
+              <li>
+                <strong>Enable Login Providers:</strong> Go to your Firebase Console and enable Google and Email/Password login.
+                <div className="mt-2">
+                  <a 
+                    href="https://console.firebase.google.com/project/ai-studio-applet-webapp-6bf3a/authentication/providers" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-700 transition-all inline-block"
+                  >
+                    Open Firebase Auth Settings
+                  </a>
+                </div>
               </li>
               <li>
                 <strong>Add Domain to Firebase:</strong> Firebase needs to know this website is safe.
@@ -321,6 +508,8 @@ const Auth: React.FC = () => {
             {isLogin ? 'Sign Up' : 'Sign In'}
           </button>
         </p>
+          </>
+        )}
       </div>
     </div>
   );
