@@ -75,6 +75,7 @@ export interface Settings {
   metaWhatsAppConfig?: MetaWhatsAppConfig;
   popupConfig: PopupConfig;
   themeType: 'type1' | 'type2' | 'type3';
+  themeMode?: 'light' | 'dark';
   adminEmail?: string;
   lastOrderNumber?: number;
   upiId?: string;

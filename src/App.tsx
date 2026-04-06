@@ -76,6 +76,20 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const mode = settings?.themeMode || 'light';
+    console.log('Applying theme mode:', mode);
+    
+    // Apply to html element for Tailwind dark: variants
+    if (mode === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = 'light';
+    }
+  }, [settings?.themeMode]);
+
+  useEffect(() => {
     const unsubscribe = dbService.subscribeToDocument<Settings>('settings', 'global', async (data) => {
       if (!data && userData?.role === 'admin') {
         // Initialize default settings if they don't exist
@@ -93,6 +107,7 @@ const App: React.FC = () => {
             show: true
           },
           themeType: 'type1',
+          themeMode: 'light',
           lastOrderNumber: 10000,
           upiId: '',
           upiName: ''
@@ -106,8 +121,8 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-black">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600 dark:text-indigo-400" />
       </div>
     );
   }

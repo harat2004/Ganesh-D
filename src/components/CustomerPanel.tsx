@@ -302,7 +302,7 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
           </div>
           <button 
             onClick={onStopImpersonating}
-            className="bg-white text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-indigo-50 transition-all"
+            className="bg-white dark:bg-black text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-lg text-xs font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all shadow-sm"
           >
             Exit Preview
           </button>
@@ -319,25 +319,25 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-2xl overflow-hidden max-w-lg w-full shadow-2xl relative"
+              className="bg-white dark:bg-black rounded-2xl overflow-hidden max-w-lg w-full shadow-2xl relative"
             >
               <button 
                 onClick={() => setShowPopup(false)}
-                className="absolute top-4 right-4 p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors z-10"
+                className="absolute top-4 right-4 p-2 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 rounded-full transition-colors z-10"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 dark:text-white" />
               </button>
               {settings.popupConfig.imageUrl && (
                 <img src={settings.popupConfig.imageUrl} alt="Offer" className="w-full h-64 object-cover" />
               )}
               <div className="p-8 text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">{settings.popupConfig.text}</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{settings.popupConfig.text}</h2>
                 {settings.popupConfig.link && (
                   <a 
                     href={settings.popupConfig.link} 
                     target="_blank" 
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                    className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
                   >
                     View Offer <ExternalLink className="w-4 h-4" />
                   </a>
@@ -352,20 +352,20 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
         <div className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { label: 'Total Orders', value: stats.total, icon: <Package className="w-8 h-8 text-blue-500" />, bg: 'bg-blue-50' },
-              { label: 'Pending', value: stats.pending, icon: <Clock className="w-8 h-8 text-amber-500" />, bg: 'bg-amber-50' },
-              { label: 'Delivered', value: stats.delivered, icon: <CheckCircle2 className="w-8 h-8 text-emerald-500" />, bg: 'bg-emerald-50' },
+              { label: 'Total Orders', value: stats.total, icon: <Package className="w-8 h-8 text-blue-500" />, bg: 'bg-blue-50 dark:bg-blue-900/20' },
+              { label: 'Pending', value: stats.pending, icon: <Clock className="w-8 h-8 text-amber-500" />, bg: 'bg-amber-50 dark:bg-amber-900/20' },
+              { label: 'Delivered', value: stats.delivered, icon: <CheckCircle2 className="w-8 h-8 text-emerald-500" />, bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
             ].map((stat, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className={`${stat.bg} p-6 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between`}
+                className={`${stat.bg} p-6 rounded-2xl border border-white/50 dark:border-white/5 shadow-sm flex items-center justify-between`}
               >
                 <div>
-                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
                 </div>
                 {stat.icon}
               </motion.div>
@@ -373,8 +373,8 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                 <Share2 className="w-5 h-5 text-indigo-600" />
                 Connect With Us
               </h3>
@@ -385,12 +385,12 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                     href={link.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all group"
+                    className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-black rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all group"
                   >
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
+                    <div className="w-10 h-10 bg-white dark:bg-black rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
                       {getSocialIcon(link.platform)}
                     </div>
-                    <span className="font-semibold capitalize">{link.platform}</span>
+                    <span className="font-semibold capitalize text-gray-900 dark:text-white">{link.platform}</span>
                   </a>
                 ))}
               </div>
@@ -402,7 +402,7 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                 <p className="text-indigo-100 mb-8 max-w-xs">Create a new order now and get it delivered to your doorstep.</p>
                 <button
                   onClick={() => setActiveTab('new-order')}
-                  className="px-8 py-3 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all flex items-center gap-2 shadow-xl"
+                  className="px-8 py-3 bg-white dark:bg-black text-indigo-600 dark:text-indigo-400 rounded-xl font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all flex items-center gap-2 shadow-xl"
                 >
                   <Plus className="w-5 h-5" />
                   New Order
@@ -412,23 +412,23 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
               <Package className="w-5 h-5 text-indigo-600" />
               Available Services
             </h3>
             {items.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
-                <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 font-medium">No services available at the moment.</p>
-                <p className="text-xs text-gray-400 mt-1">Please check back later or contact the administrator.</p>
+              <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-100 dark:border-gray-700">
+                <Package className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400 font-medium">No services available at the moment.</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Please check back later or contact the administrator.</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {Array.from(new Set(items.map(i => i.name))).map((name) => (
-                  <div key={name} className="p-4 bg-gray-50 rounded-xl text-center hover:bg-indigo-50 hover:border-indigo-100 border border-transparent transition-all group cursor-pointer" onClick={() => { setActiveTab('new-order'); setSelectedItem(name); setOrderStep(1); }}>
-                    <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{name}</p>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1 font-bold">
+                  <div key={name} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-center hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:border-indigo-100 dark:hover:border-indigo-800 border border-transparent transition-all group cursor-pointer" onClick={() => { setActiveTab('new-order'); setSelectedItem(name); setOrderStep(1); }}>
+                    <p className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{name}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-1 font-bold">
                       {items.filter(i => i.name === name).length} Options
                     </p>
                   </div>
@@ -442,54 +442,54 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
       {activeTab === 'new-order' && (
         <div className="max-w-3xl mx-auto">
           <div className="mb-8 flex items-center justify-between">
-            <h2 className="text-3xl font-bold text-gray-900">Create New Order</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Create New Order</h2>
             <div className="flex items-center gap-2 text-sm font-medium">
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center ${orderStep === 1 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}>1</span>
-              <div className="w-8 h-px bg-gray-200" />
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center ${orderStep === 2 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}>2</span>
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center ${orderStep === 1 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400'}`}>1</span>
+              <div className="w-8 h-px bg-gray-200 dark:bg-gray-800" />
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center ${orderStep === 2 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400'}`}>2</span>
             </div>
           </div>
 
           {orderStep === 1 ? (
             <div className="space-y-6">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Add Items</h3>
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Add Items</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Select Item</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Select Item</label>
                     <select
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={selectedItem}
                       onChange={(e) => setSelectedItem(e.target.value)}
                     >
-                      <option value="">Select an item</option>
+                      <option value="" className="dark:bg-black">Select an item</option>
                       {Array.from(new Set(items.map(i => i.name))).map(name => (
-                        <option key={name} value={name}>{name}</option>
+                        <option key={name} value={name} className="dark:bg-black">{name}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Select Service</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Select Service</label>
                     <select
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={selectedService}
                       onChange={(e) => setSelectedService(e.target.value)}
                       disabled={!selectedItem}
                     >
-                      <option value="">Select a service</option>
+                      <option value="" className="dark:bg-black">Select a service</option>
                       {items.filter(i => i.name === selectedItem).map(item => (
-                        <option key={item.id} value={item.service}>
+                        <option key={item.id} value={item.service} className="dark:bg-black">
                           {item.service} {item.showPriceToCustomer ? `(₹${item.price})` : ''}
                         </option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Quantity</label>
                     <input
                       type="number"
                       min="1"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={quantity}
                       onChange={(e) => setQuantity(parseInt(e.target.value))}
                     />
@@ -515,9 +515,9 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="border-t border-gray-100 pt-6">
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-bold text-gray-900">Current List</h4>
+                    <h4 className="font-bold text-gray-900 dark:text-white">Current List</h4>
                     {editingIndex !== null && (
                       <button 
                         onClick={() => {
@@ -533,27 +533,27 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                     )}
                   </div>
                   {currentItems.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">No items added yet</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-8 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">No items added yet</p>
                   ) : (
                     <div className="space-y-3">
                       {currentItems.map((item, index) => (
-                        <div key={index} className={`flex items-center justify-between p-4 rounded-xl group transition-all ${editingIndex === index ? 'bg-indigo-50 border border-indigo-200 ring-2 ring-indigo-100' : 'bg-gray-50 border border-transparent'}`}>
+                        <div key={index} className={`flex items-center justify-between p-4 rounded-xl group transition-all ${editingIndex === index ? 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-100 dark:ring-indigo-900/20' : 'bg-gray-50 dark:bg-gray-800/50 border border-transparent'}`}>
                           <div>
-                            <p className="font-bold text-gray-900">{item.itemName}</p>
-                            <p className="text-sm text-gray-500">{item.service} x {item.quantity}</p>
+                            <p className="font-bold text-gray-900 dark:text-white">{item.itemName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{item.service} x {item.quantity}</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <p className="font-bold text-indigo-600 mr-2">₹{item.price * item.quantity}</p>
+                            <p className="font-bold text-indigo-600 dark:text-indigo-400 mr-2">₹{item.price * item.quantity}</p>
                             <button 
                               onClick={() => handleEditItem(index)} 
-                              className="p-2 text-indigo-500 hover:bg-indigo-100 rounded-lg transition-colors"
+                              className="p-2 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
                               title="Edit"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button 
                               onClick={() => handleRemoveItem(index)} 
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-lg transition-colors"
                               title="Remove"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -580,29 +580,29 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Delivery Details</h3>
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Delivery Details</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                       <Phone className="w-4 h-4 text-gray-400" />
                       Mobile Number
                     </label>
                     <input
                       type="tel"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
                       placeholder="Enter mobile number"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-gray-400" />
                       Delivery Address
                     </label>
                     <textarea
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none dark:text-white"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="Enter full delivery address"
@@ -611,8 +611,8 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Payment Method</h3>
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Payment Method</h3>
                 <div className="grid grid-cols-3 gap-3 mb-8">
                   {[
                     { id: 'Cash', label: 'Cash on Delivery', icon: <ShoppingBag className="w-5 h-5" /> },
@@ -627,8 +627,8 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                       }}
                       className={`py-4 px-2 rounded-2xl font-bold text-xs transition-all flex flex-col items-center gap-3 border-2 ${
                         paymentMethod === method.id
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
-                          : 'bg-white text-gray-500 border-gray-100 hover:border-indigo-200'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-none'
+                          : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800'
                       }`}
                     >
                       {method.icon}
@@ -639,11 +639,11 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
 
                 {(paymentMethod === 'GPay' || paymentMethod === 'UPI') && settings?.upiId && (
                   <div className="space-y-6">
-                    <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100 text-center">
+                    <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-3xl border border-indigo-100 dark:border-indigo-800 text-center">
                       <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-4">Scan to Pay ₹{totalAmount}</p>
                       
                       {/* QR Code Generator using public API */}
-                      <div className="bg-white p-4 rounded-2xl inline-block shadow-sm mb-4 border border-indigo-100">
+                      <div className="bg-[#ffffff] p-4 rounded-2xl inline-block shadow-sm mb-4 border border-indigo-100">
                         <img 
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR`)}`}
                           alt="Payment QR Code"
@@ -652,14 +652,14 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                         />
                       </div>
                       
-                      <p className="text-lg font-bold text-indigo-900 mb-1">{settings.upiName || settings.shopName}</p>
-                      <p className="text-sm font-mono font-bold text-indigo-600 mb-6">{settings.upiId}</p>
+                      <p className="text-lg font-bold text-indigo-900 dark:text-indigo-100 mb-1">{settings.upiName || settings.shopName}</p>
+                      <p className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400 mb-6">{settings.upiId}</p>
 
                       <div className="grid grid-cols-1 gap-3">
                         {paymentMethod === 'GPay' ? (
                           <a 
                             href={`intent://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`}
-                            className="flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                            className="flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 dark:shadow-none"
                           >
                             <ExternalLink className="w-5 h-5" />
                             Open Google Pay
@@ -668,13 +668,13 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                           <div className="grid grid-cols-2 gap-3">
                             <a 
                               href={`intent://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR#Intent;scheme=upi;package=com.phonepe.app;end`}
-                              className="flex items-center justify-center gap-2 py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-100"
+                              className="flex items-center justify-center gap-2 py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-100 dark:shadow-none"
                             >
                               PhonePe
                             </a>
                             <a 
                               href={`upi://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR`}
-                              className="flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                              className="flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none"
                             >
                               Other UPI
                             </a>
@@ -686,7 +686,7 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                     {!paymentConfirmed && (
                       <button
                         onClick={() => setPaymentConfirmed(true)}
-                        className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"
+                        className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 dark:shadow-none"
                       >
                         <CheckCircle2 className="w-6 h-6" />
                         I have completed the payment
@@ -694,7 +694,7 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                     )}
                     
                     {paymentConfirmed && (
-                      <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 text-center font-bold flex items-center justify-center gap-2">
+                      <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-2xl text-emerald-600 dark:text-emerald-400 text-center font-bold flex items-center justify-center gap-2">
                         <CheckCircle2 className="w-5 h-5" />
                         Payment Confirmed by You
                         <button 
@@ -709,28 +709,28 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                 )}
               </div>
 
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Order Summary</h3>
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Order Summary</h3>
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between text-gray-600">
+                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Order Date & Time</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-gray-900 dark:text-white">
                       {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
+                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Total Items</span>
-                    <span className="font-bold">{totalQuantity}</span>
+                    <span className="font-bold text-gray-900 dark:text-white">{totalQuantity}</span>
                   </div>
-                  <div className="flex justify-between text-2xl font-bold text-gray-900 pt-4 border-t border-gray-100">
+                  <div className="flex justify-between text-2xl font-bold text-gray-900 dark:text-white pt-4 border-t border-gray-100 dark:border-gray-800">
                     <span>Total Amount</span>
-                    <span className="text-indigo-600">₹{totalAmount}</span>
+                    <span className="text-indigo-600 dark:text-indigo-400">₹{totalAmount}</span>
                   </div>
                 </div>
                 <div className="flex gap-4">
                   <button
                     onClick={() => setOrderStep(1)}
-                    className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                    className="flex-1 py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                   >
                     Back
                   </button>
@@ -744,9 +744,9 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                       handleConfirmOrder();
                     }}
                     disabled={isSubmitting || !settings || (paymentMethod !== 'Cash' && !paymentConfirmed)}
-                    className={`flex-[2] py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-200 ${
+                    className={`flex-[2] py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-200 dark:shadow-none ${
                       (isSubmitting || !settings || (paymentMethod !== 'Cash' && !paymentConfirmed))
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        ? 'bg-gray-300 dark:bg-gray-800 text-gray-500 dark:text-gray-600 cursor-not-allowed'
                         : 'bg-indigo-600 text-white hover:bg-indigo-700'
                     }`}
                   >
@@ -786,12 +786,12 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
 
       {activeTab === 'orders' && (
         <div className="space-y-6">
-          <h2 className="text-3xl font-bold text-gray-900">My Orders</h2>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">My Orders</h2>
           {orders.length === 0 ? (
-            <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center">
-              <ShoppingBag className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No orders yet</h3>
-              <p className="text-gray-500 mb-8">You haven't placed any orders yet. Start shopping now!</p>
+            <div className="bg-white dark:bg-black p-12 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-center">
+              <ShoppingBag className="w-16 h-16 text-gray-200 dark:text-gray-800 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No orders yet</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">You haven't placed any orders yet. Start shopping now!</p>
               <button
                 onClick={() => setActiveTab('new-order')}
                 className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
@@ -806,48 +806,48 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                   key={order.id}
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all"
+                  className="bg-white dark:bg-black p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-all"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order No.</p>
-                      <p className="font-bold text-indigo-600">#{order.orderNumber || order.id.slice(-8).toUpperCase()}</p>
+                      <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Order No.</p>
+                      <p className="font-bold text-indigo-600 dark:text-indigo-400">#{order.orderNumber || order.id.slice(-8).toUpperCase()}</p>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                      order.status === 'delivery' ? 'bg-emerald-100 text-emerald-600' :
-                      order.status === 'ready' ? 'bg-purple-100 text-purple-600' :
-                      order.status === 'processing' ? 'bg-blue-100 text-blue-600' :
-                      order.status === 'receive' ? 'bg-indigo-100 text-indigo-600' :
-                      'bg-amber-100 text-amber-600'
+                      order.status === 'delivery' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+                      order.status === 'ready' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' :
+                      order.status === 'processing' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' :
+                      order.status === 'receive' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' :
+                      'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
                     }`}>
                       {order.status}
                     </span>
                   </div>
 
                   {order.trackingId && (
-                    <div className="mb-4 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                      <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Tracking ID</p>
-                      <p className="text-sm font-bold text-indigo-700 font-mono">{order.trackingId}</p>
+                    <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                      <p className="text-xs font-bold text-indigo-400 dark:text-indigo-500 uppercase tracking-wider mb-1">Tracking ID</p>
+                      <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 font-mono">{order.trackingId}</p>
                     </div>
                   )}
                   
                   <div className="space-y-3 mb-6">
                     {order.items.map((item, i) => (
                       <div key={i} className="flex justify-between text-sm">
-                        <span className="text-gray-600">{item.itemName} ({item.service}) x {item.quantity}</span>
-                        <span className="font-bold text-gray-900">₹{item.price * item.quantity}</span>
+                        <span className="text-gray-600 dark:text-gray-400">{item.itemName} ({item.service}) x {item.quantity}</span>
+                        <span className="font-bold text-gray-900 dark:text-white">₹{item.price * item.quantity}</span>
                       </div>
                     ))}
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
                     <div>
-                      <p className="text-xs text-gray-400">Total Amount</p>
-                      <p className="text-xl font-bold text-indigo-600">₹{order.totalAmount}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Total Amount</p>
+                      <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">₹{order.totalAmount}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-gray-400">Date</p>
-                      <p className="text-sm font-medium text-gray-600">
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Date</p>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         {(() => {
                           const d = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
                           return !isNaN(d.getTime()) ? d.toLocaleDateString() : 'N/A';
@@ -868,16 +868,16 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden text-center p-8"
+              className="bg-white dark:bg-black rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden text-center p-8"
             >
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Order Successful!</h3>
-              <p className="text-gray-500 mb-8">Your order has been placed successfully. You can track its status in the "My Orders" tab.</p>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Order Successful!</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">Your order has been placed successfully. You can track its status in the "My Orders" tab.</p>
               <button
                 onClick={() => setShowOrderSuccess(false)}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all"
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none transition-all"
               >
                 Great, Thanks!
               </button>

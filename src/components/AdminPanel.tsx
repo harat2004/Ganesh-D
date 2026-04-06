@@ -38,6 +38,9 @@ import {
   UserCheck,
   UserX,
   Save,
+  Check,
+  Sun,
+  Moon,
   ShieldCheck,
   Image as ImageIcon,
   Link as LinkIcon,
@@ -541,9 +544,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
     setNewItem({ name: '', service: '', price: 0, showPriceToCustomer: true });
   };
 
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   const handleSaveSettings = async () => {
     if (tempSettings) {
-      await dbService.setDocument('settings', 'global', tempSettings);
+      setIsSavingSettings(true);
+      try {
+        await dbService.setDocument('settings', 'global', tempSettings);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } catch (error) {
+        console.error('Failed to save settings:', error);
+      } finally {
+        setIsSavingSettings(false);
+      }
     }
   };
 
@@ -818,9 +833,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
         <div className="space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Dashboard Overview</h2>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h2>
             </div>
-            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+            <div className="flex items-center gap-2 bg-white dark:bg-black p-1 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-x-auto">
               {[
                 { id: 'today', label: 'Today' },
                 { id: 'yesterday', label: 'Yesterday' },
@@ -834,8 +849,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   onClick={() => setDashboardFilter(filter.id as any)}
                   className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                     dashboardFilter === filter.id
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
-                      : 'text-gray-500 hover:bg-gray-50'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-indigo-900/20'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   {filter.label}
@@ -855,31 +870,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4"
+                className="bg-white dark:bg-black p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4"
               >
-                <div className={`${stat.color} p-3 rounded-xl text-white shadow-lg shadow-${stat.color.split('-')[1]}-100`}>
+                <div className={`${stat.color} p-3 rounded-xl text-white shadow-lg shadow-${stat.color.split('-')[1]}-100 dark:shadow-none`}>
                   {stat.icon}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
                 </div>
               </motion.div>
             ))}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 mb-8">Revenue Overview</h3>
+            <div className="lg:col-span-2 bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Revenue Overview</h3>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={settings?.themeMode === 'dark' ? '#374151' : '#f3f4f6'} />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: settings?.themeMode === 'dark' ? '#9ca3af' : '#9ca3af', fontSize: 12 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: settings?.themeMode === 'dark' ? '#9ca3af' : '#9ca3af', fontSize: 12 }} />
                     <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                      cursor={{ fill: '#f9fafb' }}
+                      contentStyle={{ 
+                        backgroundColor: settings?.themeMode === 'dark' ? '#000000' : '#fff', 
+                        borderRadius: '12px', 
+                        border: settings?.themeMode === 'dark' ? '1px solid #1a1a1a' : 'none', 
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                        color: settings?.themeMode === 'dark' ? '#fff' : '#000'
+                      }}
+                      itemStyle={{ color: settings?.themeMode === 'dark' ? '#fff' : '#000' }}
+                      cursor={{ fill: settings?.themeMode === 'dark' ? '#050505' : '#f9fafb' }}
                     />
                     <Bar dataKey="revenue" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40} />
                   </BarChart>
@@ -887,8 +909,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 mb-8">Order Status</h3>
+            <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Order Status</h3>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -905,7 +927,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: settings?.themeMode === 'dark' ? '#000000' : '#fff', 
+                        borderRadius: '12px', 
+                        border: settings?.themeMode === 'dark' ? '1px solid #1a1a1a' : 'none', 
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                        color: settings?.themeMode === 'dark' ? '#fff' : '#000'
+                      }}
+                      itemStyle={{ color: settings?.themeMode === 'dark' ? '#fff' : '#000' }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -914,9 +945,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
-                      <span className="text-sm text-gray-600">{status.name}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">{status.name}</span>
                     </div>
-                    <span className="text-sm font-bold text-gray-900">{status.value}</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">{status.value}</span>
                   </div>
                 ))}
               </div>
@@ -928,23 +959,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
       {activeTab === 'orders' && (
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-3xl font-bold text-gray-900">Order Management</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Order Management</h2>
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search orders..."
-                  className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="pl-10 pr-4 py-2 bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}
                 />
               </div>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                 <input
                   type="date"
-                  className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="pl-10 pr-4 py-2 bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                   value={orderDateFilter}
                   onChange={(e) => setOrderDateFilter(e.target.value)}
                 />
@@ -952,23 +983,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Order No.</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date & Time</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Items</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Payment</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Tracking ID</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                  <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Order No.</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date & Time</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Items</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tracking ID</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {orders
                     .filter(o => {
                       const matchesSearch = (
@@ -982,12 +1013,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                       return matchesSearch && matchesDate;
                     })
                     .map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-bold text-sm text-indigo-600">
+                      <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-sm text-indigo-600 dark:text-indigo-400">
                           #{order.orderNumber || order.id.slice(-8).toUpperCase()}
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {(() => {
                               const d = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
                               return !isNaN(d.getTime()) 
@@ -995,7 +1026,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                                 : 'N/A';
                             })()}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
                             {(() => {
                               const d = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
                               return !isNaN(d.getTime()) 
@@ -1005,30 +1036,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                           </p>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="font-bold text-gray-900">{order.customerName}</p>
-                          <p className="text-xs text-gray-500">{order.mobile}</p>
+                          <p className="font-bold text-gray-900 dark:text-white">{order.customerName}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{order.mobile}</p>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm text-gray-600">{order.items.length} items</p>
-                          <p className="text-xs text-gray-400 truncate max-w-[150px]">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{order.items.length} items</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[150px]">
                             {order.items.map(i => i.itemName).join(', ')}
                           </p>
                         </td>
-                        <td className="px-6 py-4 font-bold text-indigo-600">₹{order.totalAmount}</td>
+                        <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">₹{order.totalAmount}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${
-                              order.paymentMethod === 'UPI' ? 'bg-purple-100 text-purple-600' :
-                              order.paymentMethod === 'GPay' ? 'bg-blue-100 text-blue-600' :
-                              order.paymentMethod === 'Cash' ? 'bg-emerald-100 text-emerald-600' :
-                              'bg-gray-100 text-gray-600'
+                              order.paymentMethod === 'UPI' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' :
+                              order.paymentMethod === 'GPay' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' :
+                              order.paymentMethod === 'Cash' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+                              'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                             }`}>
                               {order.paymentMethod || 'Cash'}
                             </span>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${
-                              order.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-600' :
-                              order.paymentStatus === 'partial' ? 'bg-amber-100 text-amber-600' :
-                              'bg-red-100 text-red-600'
+                              order.paymentStatus === 'paid' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+                              order.paymentStatus === 'partial' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
+                              'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                             }`}>
                               {order.paymentStatus || 'pending'}
                             </span>
@@ -1038,7 +1069,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                           <input
                             type="text"
                             placeholder="Tracking ID"
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1 w-32 focus:border-indigo-500 outline-none"
+                            className="text-xs bg-transparent border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 w-32 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none dark:text-white"
                             defaultValue={order.trackingId || ''}
                             onBlur={(e) => {
                               if (e.target.value !== (order.trackingId || '')) {
@@ -1050,34 +1081,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                         <td className="px-6 py-4">
                           <select
                             className={`text-xs font-bold px-3 py-1 rounded-full border-none outline-none cursor-pointer ${
-                              order.status === 'delivery' ? 'bg-emerald-100 text-emerald-600' :
-                              order.status === 'ready' ? 'bg-purple-100 text-purple-600' :
-                              order.status === 'processing' ? 'bg-blue-100 text-blue-600' :
-                              order.status === 'receive' ? 'bg-indigo-100 text-indigo-600' :
-                              'bg-amber-100 text-amber-600'
+                              order.status === 'delivery' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+                              order.status === 'ready' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' :
+                              order.status === 'processing' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' :
+                              order.status === 'receive' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' :
+                              'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
                             }`}
                             value={order.status}
                             onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
                           >
-                            <option value="pending">Pending</option>
-                            <option value="receive">Received</option>
-                            <option value="processing">Processing</option>
-                            <option value="ready">Ready</option>
-                            <option value="delivery">Delivered</option>
+                            <option value="pending" className="dark:bg-black">Pending</option>
+                            <option value="receive" className="dark:bg-black">Received</option>
+                            <option value="processing" className="dark:bg-black">Processing</option>
+                            <option value="ready" className="dark:bg-black">Ready</option>
+                            <option value="delivery" className="dark:bg-black">Delivered</option>
                           </select>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <button 
                               onClick={() => generateBillPDF(order)}
-                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              className="p-2 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
                               title="Download Bill"
                             >
                               <Download className="w-5 h-5" />
                             </button>
                             <button 
                               onClick={() => dbService.deleteDocument('orders', order.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
                               title="Delete Order"
                             >
                               <Trash2 className="w-5 h-5" />
@@ -1096,7 +1127,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
       {activeTab === 'items' && (
         <div className="space-y-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold text-gray-900">Item Management</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Item Management</h2>
             <button
               onClick={() => {
                 setEditingItem(null);
@@ -1110,36 +1141,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 h-fit">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">
+            <div className="lg:col-span-1 bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 h-fit">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
                 {editingItem ? 'Edit Item' : 'Add New Item'}
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Item Name</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Item Name</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={newItem.name}
                     onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                     placeholder="e.g., T-Shirt"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Service Type</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Service Type</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={newItem.service}
                     onChange={(e) => setNewItem({ ...newItem, service: e.target.value })}
                     placeholder="e.g., Ironing"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price (₹)</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Price (₹)</label>
                   <input
                     type="number"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={newItem.price}
                     onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) })}
                   />
@@ -1147,39 +1178,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                 <div className="flex items-center gap-3 py-2">
                   <button
                     onClick={() => setNewItem({ ...newItem, showPriceToCustomer: !newItem.showPriceToCustomer })}
-                    className={`p-2 rounded-lg transition-all ${newItem.showPriceToCustomer ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'}`}
+                    className={`p-2 rounded-lg transition-all ${newItem.showPriceToCustomer ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}
                   >
                     {newItem.showPriceToCustomer ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                   </button>
-                  <span className="text-sm font-medium text-gray-600">Show price to customer</span>
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Show price to customer</span>
                 </div>
                 <button
                   onClick={handleSaveItem}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none"
                 >
                   {editingItem ? 'Update Item' : 'Save Item'}
                 </button>
               </div>
             </div>
 
-            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="lg:col-span-2 bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Item Name</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date Added</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Service</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Price</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Visibility</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Item Name</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date Added</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Service</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Visibility</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {items.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
-                        <td className="px-6 py-4 text-xs text-gray-500">
+                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{item.name}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">
                           {(() => {
                             const d = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
                             return !isNaN(d.getTime()) 
@@ -1187,15 +1218,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                               : 'N/A';
                           })()}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">{item.service}</td>
-                        <td className="px-6 py-4 font-bold text-indigo-600">₹{item.price}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{item.service}</td>
+                        <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">₹{item.price}</td>
                         <td className="px-6 py-4">
                           {item.showPriceToCustomer ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
                               <Eye className="w-3 h-3" /> Visible
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-full">
                               <EyeOff className="w-3 h-3" /> Hidden
                             </span>
                           )}
@@ -1207,13 +1238,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                                 setEditingItem(item);
                                 setNewItem({ name: item.name, service: item.service, price: item.price, showPriceToCustomer: item.showPriceToCustomer });
                               }}
-                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              className="p-2 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-lg transition-all"
                             >
                               <Edit className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => dbService.deleteDocument('items', item.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-lg transition-all"
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>
@@ -1232,56 +1263,56 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
       {activeTab === 'users' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold text-gray-900">User Management</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h2>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search users..."
-                className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                className="pl-10 pr-4 py-2 bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Joined</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                  <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Joined</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {users
                     .filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()))
                     .filter(u => u.role === 'customer' || u.email === 'ganeshdrycleaner@gmail.com')
                     .map((user) => (
-                      <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
+                      <tr key={user.uid} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
+                            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center font-bold">
                               {user.name[0]}
                             </div>
                             <div>
-                              <p className="font-bold text-gray-900">{user.name}</p>
-                              <p className="text-xs text-gray-500">{user.email}</p>
+                              <p className="font-bold text-gray-900 dark:text-white">{user.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                            user.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'
+                            user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                           }`}>
                             {user.role}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                           {(() => {
                             const d = user.createdAt?.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
                             return !isNaN(d.getTime()) ? d.toLocaleDateString() : 'N/A';
@@ -1289,11 +1320,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                         </td>
                         <td className="px-6 py-4">
                           {user.isBlocked ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded-full">
                               <AlertCircle className="w-3 h-3" /> Blocked
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
                               <CheckCircle2 className="w-3 h-3" /> Active
                             </span>
                           )}
@@ -1304,7 +1335,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                               <>
                                 <button
                                   onClick={() => onImpersonate(user)}
-                                  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                  className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-lg transition-all"
                                   title="Login as User"
                                 >
                                   <Eye className="w-5 h-5" />
@@ -1313,8 +1344,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                                   onClick={() => dbService.updateDocument('users', user.uid, { isBlocked: !user.isBlocked })}
                                   className={`p-2 rounded-lg transition-all ${
                                     user.isBlocked 
-                                      ? 'text-emerald-600 hover:bg-emerald-50' 
-                                      : 'text-red-600 hover:bg-red-50'
+                                      ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50' 
+                                      : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50'
                                   }`}
                                   title={user.isBlocked ? 'Unblock User' : 'Block User'}
                                 >
@@ -1333,103 +1364,115 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
         </div>
       )}
 
-      {activeTab === 'settings' && tempSettings && (
-        <div className="space-y-8">
-          <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold text-gray-900">System Settings</h2>
-            <button
-              onClick={handleSaveSettings}
-              className="px-8 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100"
-            >
-              <Save className="w-5 h-5" />
-              Save All Changes
-            </button>
-          </div>
+      {activeTab === 'settings' && (
+        tempSettings ? (
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">System Settings</h2>
+              <button
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                className={`px-8 py-2 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg ${
+                  saveSuccess 
+                    ? 'bg-emerald-600 text-white shadow-emerald-100 dark:shadow-none' 
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 dark:shadow-none'
+                } disabled:opacity-50`}
+              >
+                {isSavingSettings ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : saveSuccess ? (
+                  <Check className="w-5 h-5" />
+                ) : (
+                  <Save className="w-5 h-5" />
+                )}
+                {isSavingSettings ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save All Changes'}
+              </button>
+            </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Package className="w-5 h-5 text-indigo-600" />
                 Shop Details
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Shop Name</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Shop Name</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={tempSettings.shopName}
-                    onChange={(e) => setTempSettings({ ...tempSettings, shopName: e.target.value })}
+                    onChange={(e) => setTempSettings(prev => prev ? { ...prev, shopName: e.target.value } : prev)}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Logo URL</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Logo URL</label>
                   <div className="flex gap-3">
                     <input
                       type="text"
-                      className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="flex-1 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={tempSettings.logoUrl}
-                      onChange={(e) => setTempSettings({ ...tempSettings, logoUrl: e.target.value })}
+                      onChange={(e) => setTempSettings(prev => prev ? { ...prev, logoUrl: e.target.value } : prev)}
                     />
                     {tempSettings.logoUrl && (
-                      <img src={tempSettings.logoUrl} alt="Logo" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                      <img src={tempSettings.logoUrl} alt="Logo" className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700" />
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Contact Number</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Contact Number</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={tempSettings.contactNumber}
-                    onChange={(e) => setTempSettings({ ...tempSettings, contactNumber: e.target.value })}
+                    onChange={(e) => setTempSettings(prev => prev ? { ...prev, contactNumber: e.target.value } : prev)}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Address</label>
                   <textarea
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white h-24 resize-none"
                     value={tempSettings.address}
-                    onChange={(e) => setTempSettings({ ...tempSettings, address: e.target.value })}
+                    onChange={(e) => setTempSettings(prev => prev ? { ...prev, address: e.target.value } : prev)}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Next Order Number (Counter)</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Next Order Number (Counter)</label>
                   <input
                     type="number"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={tempSettings.lastOrderNumber || 10000}
-                    onChange={(e) => setTempSettings({ ...tempSettings, lastOrderNumber: parseInt(e.target.value) })}
+                    onChange={(e) => setTempSettings(prev => prev ? { ...prev, lastOrderNumber: parseInt(e.target.value) } : prev)}
                   />
-                  <p className="text-xs text-gray-400 mt-1">This number will be incremented for each new order.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">This number will be incremented for each new order.</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-indigo-600" />
                 UPI Payment Settings
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">UPI ID (VPA)</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">UPI ID (VPA)</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={tempSettings.upiId || ''}
-                    onChange={(e) => setTempSettings({ ...tempSettings, upiId: e.target.value })}
+                    onChange={(e) => setTempSettings(prev => prev ? { ...prev, upiId: e.target.value } : prev)}
                     placeholder="e.g. yourname@upi"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Customers will use this ID to make direct payments.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Customers will use this ID to make direct payments.</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">UPI Name (Payee Name)</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">UPI Name (Payee Name)</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={tempSettings.upiName || ''}
-                    onChange={(e) => setTempSettings({ ...tempSettings, upiName: e.target.value })}
+                    onChange={(e) => setTempSettings(prev => prev ? { ...prev, upiName: e.target.value } : prev)}
                     placeholder="e.g. Ganesh Dry Cleaner"
                   />
                 </div>
@@ -1437,31 +1480,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
             </div>
 
             <div className="space-y-8">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <MessageCircle className="w-5 h-5 text-emerald-600" />
                   WhatsApp API Setup
                 </h3>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">WhatsApp API URL (Direct Link)</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">WhatsApp API URL (Direct Link)</label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={tempSettings.whatsappApiUrl}
-                    onChange={(e) => setTempSettings({ ...tempSettings, whatsappApiUrl: e.target.value })}
+                    onChange={(e) => setTempSettings(prev => prev ? { ...prev, whatsappApiUrl: e.target.value } : prev)}
                     placeholder="https://api.whatsapp.com/send"
                   />
-                  <p className="text-xs text-gray-400 mt-2">Default: https://api.whatsapp.com/send</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Default: https://api.whatsapp.com/send</p>
                 </div>
 
-                <div className="border-t border-gray-100 pt-6 space-y-4">
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-gray-900">Meta WhatsApp API (Automatic)</h4>
+                    <h4 className="font-bold text-gray-900 dark:text-white">Meta WhatsApp API (Automatic)</h4>
                     <button
-                      onClick={() => setTempSettings({
-                        ...tempSettings,
+                      onClick={() => setTempSettings(prev => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
                         metaWhatsAppConfig: {
-                          ...(tempSettings.metaWhatsAppConfig || {
+                          ...(prev.metaWhatsAppConfig || {
                             accessToken: '',
                             phoneNumberId: '',
                             businessAccountId: '',
@@ -1469,10 +1514,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                             languageCode: 'en_US',
                             enabled: false
                           }),
-                          enabled: !tempSettings.metaWhatsAppConfig?.enabled
+                          enabled: !prev.metaWhatsAppConfig?.enabled
                         }
-                      })}
-                      className={`w-12 h-6 rounded-full transition-all relative ${tempSettings.metaWhatsAppConfig?.enabled ? 'bg-emerald-600' : 'bg-gray-200'}`}
+                      };
+                    })}
+                      className={`w-12 h-6 rounded-full transition-all relative ${tempSettings.metaWhatsAppConfig?.enabled ? 'bg-emerald-600' : 'bg-gray-200 dark:bg-gray-800'}`}
                     >
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${tempSettings.metaWhatsAppConfig?.enabled ? 'right-1' : 'left-1'}`} />
                     </button>
@@ -1481,51 +1527,51 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   {tempSettings.metaWhatsAppConfig?.enabled && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Access Token</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Access Token</label>
                         <input
                           type="password"
-                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white"
                           value={tempSettings.metaWhatsAppConfig.accessToken}
-                          onChange={(e) => setTempSettings({
-                            ...tempSettings,
-                            metaWhatsAppConfig: { ...tempSettings.metaWhatsAppConfig!, accessToken: e.target.value }
-                          })}
+                          onChange={(e) => setTempSettings(prev => prev ? {
+                            ...prev,
+                            metaWhatsAppConfig: { ...prev.metaWhatsAppConfig!, accessToken: e.target.value }
+                          } : prev)}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number ID</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Phone Number ID</label>
                         <input
                           type="text"
-                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white"
                           value={tempSettings.metaWhatsAppConfig.phoneNumberId}
-                          onChange={(e) => setTempSettings({
-                            ...tempSettings,
-                            metaWhatsAppConfig: { ...tempSettings.metaWhatsAppConfig!, phoneNumberId: e.target.value }
-                          })}
+                          onChange={(e) => setTempSettings(prev => prev ? {
+                            ...prev,
+                            metaWhatsAppConfig: { ...prev.metaWhatsAppConfig!, phoneNumberId: e.target.value }
+                          } : prev)}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Template Name</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Template Name</label>
                         <input
                           type="text"
-                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white"
                           value={tempSettings.metaWhatsAppConfig.templateName}
-                          onChange={(e) => setTempSettings({
-                            ...tempSettings,
-                            metaWhatsAppConfig: { ...tempSettings.metaWhatsAppConfig!, templateName: e.target.value }
-                          })}
+                          onChange={(e) => setTempSettings(prev => prev ? {
+                            ...prev,
+                            metaWhatsAppConfig: { ...prev.metaWhatsAppConfig!, templateName: e.target.value }
+                          } : prev)}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Language Code</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Language Code</label>
                         <input
                           type="text"
-                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white"
                           value={tempSettings.metaWhatsAppConfig.languageCode}
-                          onChange={(e) => setTempSettings({
-                            ...tempSettings,
-                            metaWhatsAppConfig: { ...tempSettings.metaWhatsAppConfig!, languageCode: e.target.value }
-                          })}
+                          onChange={(e) => setTempSettings(prev => prev ? {
+                            ...prev,
+                            metaWhatsAppConfig: { ...prev.metaWhatsAppConfig!, languageCode: e.target.value }
+                          } : prev)}
                           placeholder="en_US"
                         />
                       </div>
@@ -1534,80 +1580,110 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-purple-600" />
                   Customer Popup Settings
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Show Popup to Customers</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show Popup to Customers</span>
                     <button
-                      onClick={() => setTempSettings({
-                        ...tempSettings,
-                        popupConfig: { ...tempSettings.popupConfig, show: !tempSettings.popupConfig.show }
+                      onClick={() => setTempSettings(prev => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          popupConfig: { ...prev.popupConfig, show: !prev.popupConfig.show }
+                        };
                       })}
-                      className={`w-12 h-6 rounded-full transition-all relative ${tempSettings.popupConfig.show ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                      className={`w-12 h-6 rounded-full transition-all relative ${tempSettings.popupConfig.show ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
                     >
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${tempSettings.popupConfig.show ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Popup Image URL</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Popup Image URL</label>
                     <input
                       type="text"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={tempSettings.popupConfig.imageUrl}
-                      onChange={(e) => setTempSettings({
-                        ...tempSettings,
-                        popupConfig: { ...tempSettings.popupConfig, imageUrl: e.target.value }
-                      })}
+                      onChange={(e) => setTempSettings(prev => prev ? {
+                        ...prev,
+                        popupConfig: { ...prev.popupConfig, imageUrl: e.target.value }
+                      } : prev)}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Popup Text</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Popup Text</label>
                     <input
                       type="text"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={tempSettings.popupConfig.text}
-                      onChange={(e) => setTempSettings({
-                        ...tempSettings,
-                        popupConfig: { ...tempSettings.popupConfig, text: e.target.value }
-                      })}
+                      onChange={(e) => setTempSettings(prev => prev ? {
+                        ...prev,
+                        popupConfig: { ...prev.popupConfig, text: e.target.value }
+                      } : prev)}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Popup Link</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Popup Link</label>
                     <input
                       type="text"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                       value={tempSettings.popupConfig.link}
-                      onChange={(e) => setTempSettings({
-                        ...tempSettings,
-                        popupConfig: { ...tempSettings.popupConfig, link: e.target.value }
-                      })}
+                      onChange={(e) => setTempSettings(prev => prev ? {
+                        ...prev,
+                        popupConfig: { ...prev.popupConfig, link: e.target.value }
+                      } : prev)}
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 space-y-6">
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-indigo-600" />
+                  Appearance Settings
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300">Theme Mode</label>
+                    <div className="flex gap-2">
+                      {['light', 'dark'].map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setTempSettings(prev => prev ? { ...prev, themeMode: mode as 'light' | 'dark' } : prev)}
+                          className={`flex-1 py-3 rounded-xl font-bold capitalize transition-all ${
+                            tempSettings.themeMode === mode
+                              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 dark:shadow-none'
+                              : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {mode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-red-100 dark:border-red-900/30 space-y-6">
                 <h3 className="text-xl font-bold text-red-600 flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5" />
                   Danger Zone
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Use these actions with extreme caution. Deleting data is permanent and cannot be reversed.
                 </p>
                 
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="max-w-xs flex-1">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Enter Danger Zone Password</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Enter Danger Zone Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="password"
-                        className="w-full pl-10 pr-4 py-2 bg-red-50 border border-red-100 rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                        className="w-full pl-10 pr-4 py-2 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-sm dark:text-red-200"
                         placeholder="Enter Password"
                         value={dangerZonePassword}
                         onChange={(e) => setDangerZonePassword(e.target.value)}
@@ -1615,15 +1691,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                     </div>
                     <p className="text-[10px] text-red-400 mt-1 font-medium">Password is <strong>Admin@2026</strong> (required to enable buttons).</p>
                   </div>
-                  <div className="flex items-center gap-3 bg-red-50/50 p-4 rounded-xl border border-red-100/50 flex-1">
+                  <div className="flex items-center gap-3 bg-red-50/50 dark:bg-red-900/5 p-4 rounded-xl border border-red-100/50 dark:border-red-900/20 flex-1">
                     <input
                       type="checkbox"
                       id="confirmDanger"
-                      className="w-5 h-5 rounded border-red-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                      className="w-5 h-5 rounded border-red-300 dark:border-red-900 text-red-600 focus:ring-red-500 cursor-pointer"
                       checked={confirmDanger}
                       onChange={(e) => setConfirmDanger(e.target.checked)}
                     />
-                    <label htmlFor="confirmDanger" className="text-sm font-medium text-red-900 cursor-pointer select-none">
+                    <label htmlFor="confirmDanger" className="text-sm font-medium text-red-900 dark:text-red-200 cursor-pointer select-none">
                       I understand that these actions are permanent and cannot be reversed.
                     </label>
                   </div>
@@ -1651,20 +1727,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
             </div>
           </div>
         </div>
-      )}
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+          <p className="text-gray-500 dark:text-gray-400 font-medium">Loading settings...</p>
+        </div>
+      )
+    )}
 
       {activeTab === 'retail' && (
         <div className="max-w-4xl mx-auto space-y-8">
-          <h2 className="text-3xl font-bold text-gray-900">Retail Customer Order</h2>
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Retail Customer Order</h2>
+          <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="relative">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Customer Name</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Customer Name</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     placeholder="Search or enter name"
                     value={retailOrder.customerName}
                     onChange={(e) => {
@@ -1698,49 +1780,49 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Mobile Number</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Mobile Number</label>
                 <input
                   type="tel"
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                   value={retailOrder.mobile}
                   onChange={(e) => setRetailOrder({ ...retailOrder, mobile: e.target.value })}
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Address</label>
                 <textarea
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 h-20 resize-none"
+                  className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 h-20 resize-none dark:text-white"
                   value={retailOrder.address}
                   onChange={(e) => setRetailOrder({ ...retailOrder, address: e.target.value })}
                 />
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-6">
-              <h3 className="font-bold text-gray-900 mb-4">Add Items</h3>
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-6">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-4">Add Items</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <select
-                  className="p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                   value={retailItem.name}
                   onChange={(e) => setRetailItem({ ...retailItem, name: e.target.value })}
                 >
-                  <option value="">Select Item</option>
-                  {Array.from(new Set(items.map(i => i.name))).map(n => <option key={n} value={n}>{n}</option>)}
+                  <option value="" className="dark:bg-black">Select Item</option>
+                  {Array.from(new Set(items.map(i => i.name))).map(n => <option key={n} value={n} className="dark:bg-black">{n}</option>)}
                 </select>
                 <select
-                  className="p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                   value={retailItem.service}
                   onChange={(e) => setRetailItem({ ...retailItem, service: e.target.value })}
                   disabled={!retailItem.name}
                 >
-                  <option value="">Select Service</option>
-                  {items.filter(i => i.name === retailItem.name).map(i => <option key={i.id} value={i.service}>{i.service}</option>)}
+                  <option value="" className="dark:bg-black">Select Service</option>
+                  {items.filter(i => i.name === retailItem.name).map(i => <option key={i.id} value={i.service} className="dark:bg-black">{i.service}</option>)}
                 </select>
                 <div className="flex gap-2">
                   <input
                     type="number"
                     min="1"
-                    className="w-20 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-20 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
                     value={retailItem.quantity}
                     onChange={(e) => setRetailItem({ ...retailItem, quantity: parseInt(e.target.value) })}
                   />
@@ -1766,27 +1848,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
             {retailOrder.items.length > 0 && (
               <div className="space-y-3">
                 {retailOrder.items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <span className="text-sm font-medium">{item.itemName} ({item.service}) x {item.quantity}</span>
+                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <span className="text-sm font-medium dark:text-gray-300">{item.itemName} ({item.service}) x {item.quantity}</span>
                     <div className="flex items-center gap-4">
-                      <span className="font-bold">₹{item.price * item.quantity}</span>
+                      <span className="font-bold dark:text-white">₹{item.price * item.quantity}</span>
                       <button 
                         onClick={() => setRetailOrder({ ...retailOrder, items: retailOrder.items.filter((_, idx) => idx !== i) })}
-                        className="text-red-500 hover:bg-red-50 p-1 rounded-lg"
+                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1 rounded-lg"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 ))}
-                <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
                   <div className="flex flex-col">
-                    <span className="text-xs text-gray-400">Order Date & Time</span>
-                    <span className="text-sm font-medium text-gray-600">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">Order Date & Time</span>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                       {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <span className="text-xl font-bold">Total: ₹{retailOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0)}</span>
+                  <span className="text-xl font-bold dark:text-white">Total: ₹{retailOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0)}</span>
                   <button
                     onClick={async () => {
                       if (!settings) return;
@@ -1842,23 +1924,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
         <div className="space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Pending Payments</h2>
-              <p className="text-gray-500">Track and manage customer balances</p>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Pending Payments</h2>
+              <p className="text-gray-500 dark:text-gray-400">Track and manage customer balances</p>
             </div>
-            <div className="bg-red-50 px-6 py-3 rounded-2xl border border-red-100">
-              <p className="text-xs font-bold text-red-600 uppercase tracking-wider">Total Outstanding</p>
-              <p className="text-2xl font-black text-red-700">₹{stats.totalPendingAmount}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 px-6 py-3 rounded-2xl border border-red-100 dark:border-red-900/30">
+              <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Total Outstanding</p>
+              <p className="text-2xl font-black text-red-700 dark:text-red-300">₹{stats.totalPendingAmount}</p>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-black p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex flex-col md:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
                 <input
                   type="text"
                   placeholder="Search by Name, Mobile, or Order #"
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white"
                   value={paymentSearch}
                   onChange={(e) => setPaymentSearch(e.target.value)}
                 />
@@ -1866,42 +1948,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/50 border-bottom border-gray-100">
-                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Order Info</th>
-                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Customer</th>
-                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Bill</th>
-                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Paid</th>
-                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Pending</th>
-                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                  <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+                    <th className="p-6 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Order Info</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Total Bill</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Paid</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Pending</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {filteredPayments.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <tr key={order.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
                       <td className="p-6">
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-gray-900">#{order.orderNumber}</span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-sm font-bold text-gray-900 dark:text-white">#{order.orderNumber}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
                             {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                       </td>
                       <td className="p-6">
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-gray-900">{order.customerName}</span>
-                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <span className="text-sm font-bold text-gray-900 dark:text-white">{order.customerName}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
                             <Phone className="w-3 h-3" /> {order.mobile}
                           </span>
                         </div>
                       </td>
-                      <td className="p-6 text-sm font-bold text-gray-900">₹{order.totalAmount}</td>
-                      <td className="p-6 text-sm font-bold text-emerald-600">₹{order.paidAmount || 0}</td>
+                      <td className="p-6 text-sm font-bold text-gray-900 dark:text-white">₹{order.totalAmount}</td>
+                      <td className="p-6 text-sm font-bold text-emerald-600 dark:text-emerald-400">₹{order.paidAmount || 0}</td>
                       <td className="p-6">
-                        <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100">
+                        <span className="px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-bold border border-red-100 dark:border-red-900/50">
                           ₹{order.pendingAmount}
                         </span>
                       </td>
@@ -1913,14 +1995,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                               setPaymentReceived(order.pendingAmount || 0);
                               setShowPaymentModal(true);
                             }}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-xl transition-all"
                             title="Record Payment"
                           >
                             <CreditCard className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleSendPaymentReminder(order)}
-                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                            className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/50 rounded-xl transition-all"
                             title="Send Reminder"
                           >
                             <BellRing className="w-5 h-5" />
@@ -1933,10 +2015,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                     <tr>
                       <td colSpan={6} className="p-12 text-center">
                         <div className="flex flex-col items-center gap-4">
-                          <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
+                          <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500 dark:text-emerald-400">
                             <CheckCircle2 className="w-8 h-8" />
                           </div>
-                          <p className="text-gray-500 font-medium">No pending payments found. Great job!</p>
+                          <p className="text-gray-500 dark:text-gray-400 font-medium">No pending payments found. Great job!</p>
                         </div>
                       </td>
                     </tr>
@@ -1961,16 +2043,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
           </div>
 
           <form onSubmit={handleUpdateProfile} className="space-y-6">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+            <div className="bg-white dark:bg-black p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <UserIcon className="w-4 h-4 text-indigo-500" />
                     Full Name
                   </label>
                   <input
                     type="text"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    className="w-full p-3 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white"
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
                     placeholder="Enter your name"
@@ -1978,25 +2060,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <Mail className="w-4 h-4 text-indigo-500" />
                     Email Address
                   </label>
                   <input
                     type="email"
                     disabled
-                    className="w-full p-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
+                    className="w-full p-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 dark:text-gray-400 cursor-not-allowed"
                     value={userData?.email || ''}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <Phone className="w-4 h-4 text-indigo-500" />
                     Mobile Number
                   </label>
                   <input
                     type="tel"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    className="w-full p-3 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white"
                     value={profileMobile}
                     onChange={(e) => setProfileMobile(e.target.value)}
                     placeholder="Enter mobile number"
@@ -2005,19 +2087,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <div className="bg-white dark:bg-black p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Lock className="w-5 h-5 text-indigo-600" />
                 Change Password
               </h3>
-              <p className="text-xs text-gray-500">Leave these fields blank if you don't want to change your password.</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Leave these fields blank if you don't want to change your password.</p>
               
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700">Current Password</label>
+                  <label className="text-sm font-bold text-gray-700 dark:text-gray-300">Current Password</label>
                   <input
                     type="password"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    className="w-full p-3 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="Enter current password"
@@ -2025,20 +2107,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700">New Password</label>
+                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300">New Password</label>
                     <input
                       type="password"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      className="w-full p-3 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Enter new password"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700">Confirm New Password</label>
+                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300">Confirm New Password</label>
                     <input
                       type="password"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      className="w-full p-3 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm new password"
@@ -2087,16 +2169,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {socialLinks.map((link) => (
-              <div key={link.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+              <div key={link.id} className="bg-white dark:bg-black p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-100 dark:border-indigo-800">
                     {getSocialIcon(link.platform)}
                   </div>
                   <div className="flex-1 space-y-4">
                     <div className="relative">
                       <input
                         type="text"
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                        className="w-full p-2 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-bold dark:text-white"
                         value={link.platform}
                         onChange={(e) => dbService.updateDocument('socialLinks', link.id, { platform: e.target.value })}
                         placeholder="Platform (e.g. Instagram, WhatsApp, Map)"
@@ -2106,7 +2188,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                           <button
                             key={p}
                             onClick={() => dbService.updateDocument('socialLinks', link.id, { platform: p })}
-                            className="text-[10px] px-1.5 py-0.5 bg-white border border-gray-200 rounded hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                            className="text-[10px] px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all dark:text-gray-300"
                           >
                             {p}
                           </button>
@@ -2115,7 +2197,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                     </div>
                     <input
                       type="text"
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      className="w-full p-2 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white"
                       value={link.url}
                       onChange={(e) => dbService.updateDocument('socialLinks', link.id, { url: e.target.value })}
                       placeholder="URL (e.g. https://instagram.com/yourname)"
@@ -2141,7 +2223,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white dark:bg-black rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             >
               <div className="bg-indigo-600 p-6 text-white">
                 <h3 className="text-xl font-bold">Record Payment</h3>
@@ -2150,24 +2232,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
               
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Bill</p>
-                    <p className="text-xl font-black text-gray-900">₹{selectedOrderForPayment.totalAmount}</p>
+                  <div className="p-4 bg-gray-50 dark:bg-black rounded-2xl border border-gray-100 dark:border-gray-800">
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Total Bill</p>
+                    <p className="text-xl font-black text-gray-900 dark:text-white">₹{selectedOrderForPayment.totalAmount}</p>
                   </div>
-                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                    <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Already Paid</p>
-                    <p className="text-xl font-black text-emerald-700">₹{selectedOrderForPayment.paidAmount || 0}</p>
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Already Paid</p>
+                    <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">₹{selectedOrderForPayment.paidAmount || 0}</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Amount Received Now</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Amount Received Now</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">₹</span>
                       <input
                         type="number"
-                        className="w-full pl-8 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-xl font-black"
+                        className="w-full pl-8 pr-4 py-4 bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-xl font-black dark:text-white"
                         value={paymentReceived}
                         onChange={(e) => setPaymentReceived(Number(e.target.value))}
                       />
@@ -2175,7 +2257,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Payment Method</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Payment Method</label>
                     <div className="grid grid-cols-3 gap-2">
                       {['Cash', 'GPay', 'UPI'].map((method) => (
                         <button
@@ -2184,7 +2266,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                           className={`py-3 rounded-xl font-bold text-sm transition-all ${
                             paymentMethod === method
                               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                              : 'bg-gray-50 dark:bg-black text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                           }`}
                         >
                           {method}
@@ -2193,10 +2275,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                     </div>
                   </div>
 
-                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-900/30">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-amber-700">Remaining Balance</span>
-                      <span className="text-lg font-black text-amber-800">
+                      <span className="text-sm font-bold text-amber-700 dark:text-amber-400">Remaining Balance</span>
+                      <span className="text-lg font-black text-amber-800 dark:text-amber-300">
                         ₹{Math.max(0, selectedOrderForPayment.totalAmount - (selectedOrderForPayment.paidAmount || 0) - paymentReceived)}
                       </span>
                     </div>
@@ -2209,7 +2291,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                       setShowPaymentModal(false);
                       setSelectedOrderForPayment(null);
                     }}
-                    className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                    className="flex-1 py-4 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                   >
                     Cancel
                   </button>

@@ -265,8 +265,9 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all hover:scale-[1.01]">
+    <div className={`min-h-screen transition-colors duration-300 ${settings?.themeMode === 'dark' ? 'dark' : ''}`}>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-black dark:via-black dark:to-black p-4">
+        <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all hover:scale-[1.01]">
         <div className="flex flex-col items-center mb-6">
           {settings?.logoUrl ? (
             <img 
@@ -276,40 +277,40 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
-              <LogIn className="w-8 h-8 text-indigo-600" />
+            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-2">
+              <LogIn className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
             </div>
           )}
-          <h2 className="text-xl font-bold text-gray-800">{settings?.shopName || 'Ganesh Dry Cleaner'}</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">{settings?.shopName || 'Ganesh Dry Cleaner'}</h2>
         </div>
 
         {isVerifyingEmail ? (
           <div className="text-center py-8">
-            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900">Verifying Email...</h2>
-            <p className="text-gray-500 mt-2">Please wait while we confirm your email address.</p>
+            <Loader2 className="w-12 h-12 text-indigo-600 dark:text-indigo-400 animate-spin mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Verifying Email...</h2>
+            <p className="text-gray-500 dark:text-gray-400 mt-2">Please wait while we confirm your email address.</p>
           </div>
         ) : isResetMode ? (
           <div className="text-center">
-            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShieldCheck className="w-8 h-8 text-indigo-600" />
+            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h1>
-            <p className="text-gray-500 mb-8">Please enter your new password below.</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Reset Password</h1>
+            <p className="text-gray-500 dark:text-gray-400 mb-8">Please enter your new password below.</p>
 
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm">
+              <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg mb-6 text-sm">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                 <input
                   type="password"
                   placeholder="New Password"
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
@@ -317,11 +318,11 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
                 />
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                 <input
                   type="password"
                   placeholder="Confirm New Password"
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   required
@@ -342,7 +343,7 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
                   setResetCode(null);
                   window.history.replaceState({}, document.title, window.location.pathname);
                 }}
-                className="text-sm text-gray-500 hover:underline"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:underline"
               >
                 Back to Login
               </button>
@@ -351,16 +352,16 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
         ) : (
           <>
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+              <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">
                 {isLogin ? 'Welcome Back' : 'Create Account'}
               </h1>
-              <p className="text-gray-500">
+              <p className="text-gray-500 dark:text-gray-400">
                 {isLogin ? 'Sign in to manage your orders' : 'Join us to start ordering'}
               </p>
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm flex flex-col gap-2">
+              <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg mb-6 text-sm flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span className="font-bold">Error:</span>
@@ -378,7 +379,7 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
             )}
 
         {message && (
-          <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
+          <div className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
             <span className="font-bold">Success:</span> {message}
           </div>
         )}
@@ -442,11 +443,11 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {!isLogin && (
             <div className="relative">
-              <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Full Name"
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -454,22 +455,22 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
             </div>
           )}
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
             <input
               type="email"
               placeholder="Email Address"
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
             <input
               type="password"
               placeholder="Password"
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required={isLogin}
@@ -481,7 +482,7 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-sm text-indigo-600 hover:underline flex items-center gap-1"
+                className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
               >
                 <KeyRound className="w-4 h-4" />
                 Forgot Password?
@@ -492,7 +493,7 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -512,27 +513,27 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
+            <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+            <span className="px-2 bg-white dark:bg-black text-gray-500 dark:text-gray-400">Or continue with</span>
           </div>
         </div>
 
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
-          className="w-full py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-sm"
+          className="w-full py-3 bg-white dark:bg-black border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-900 active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-sm"
         >
           <Chrome className="w-5 h-5 text-red-500" />
           Sign in with Google
         </button>
 
-        <p className="text-center mt-8 text-gray-600">
+        <p className="text-center mt-8 text-gray-600 dark:text-gray-400">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-indigo-600 font-bold hover:underline"
+            className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
           >
             {isLogin ? 'Sign Up' : 'Sign In'}
           </button>
@@ -540,6 +541,7 @@ const Auth: React.FC<AuthProps> = ({ settings }) => {
           </>
         )}
       </div>
+    </div>
     </div>
   );
 };

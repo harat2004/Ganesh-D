@@ -93,8 +93,11 @@ export const dbService = {
 
   async setDocument(path: string, id: string, data: any) {
     try {
+      console.log(`Setting document: ${path}/${id}`, data);
       await setDoc(doc(db, path, id), { ...data, updatedAt: Timestamp.now() }, { merge: true });
+      console.log(`Successfully set document: ${path}/${id}`);
     } catch (error) {
+      console.error(`Error setting document ${path}/${id}:`, error);
       handleFirestoreError(error, OperationType.WRITE, `${path}/${id}`);
     }
   },
