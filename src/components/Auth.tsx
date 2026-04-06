@@ -12,10 +12,15 @@ import {
 } from 'firebase/auth';
 import { auth } from '../firebase';
 import { dbService } from '../services/db';
-import { User } from '../types';
+import { User, Settings } from '../types';
+import { ADMIN_EMAILS } from '../constants';
 import { LogIn, UserPlus, Mail, Lock, Loader2, Chrome, KeyRound, AlertTriangle, Copy, Check, ShieldCheck, MailCheck } from 'lucide-react';
 
-const Auth: React.FC = () => {
+interface AuthProps {
+  settings: Settings | null;
+}
+
+const Auth: React.FC<AuthProps> = ({ settings }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -177,18 +182,25 @@ const Auth: React.FC = () => {
     setMessage(null);
     try {
       const provider = new GoogleAuthProvider();
+      provider.addScope('email');
+      provider.addScope('profile');
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      
+      if (!user.email) {
+        throw new Error('Google did not provide an email address. Please check your Google account settings.');
+      }
       
       // Check if user exists in Firestore
       const existingUser = await dbService.getDocument<User>('users', user.uid);
       if (!existingUser) {
-        const isAdmin = user.email === 'shreecharbhujadigitalstudio@gmail.com';
+        const userEmail = user.email?.toLowerCase();
+        const isAdmin = userEmail && ADMIN_EMAILS.some(email => email.toLowerCase() === userEmail);
         // Create new user
         const newUser: User = {
           uid: user.uid,
           name: user.displayName || 'New User',
-          email: user.email || '',
+          email: user.email,
           role: isAdmin ? 'admin' : 'customer',
           isBlocked: false,
           createdAt: new Date().toISOString()
@@ -226,7 +238,8 @@ const Auth: React.FC = () => {
         const user = result.user;
         await updateProfile(user, { displayName: name });
         
-        const isAdmin = email === 'shreecharbhujadigitalstudio@gmail.com';
+        const userEmail = email?.toLowerCase();
+        const isAdmin = userEmail && ADMIN_EMAILS.some(e => e.toLowerCase() === userEmail);
         const newUser: User = {
           uid: user.uid,
           name: name,
@@ -254,6 +267,22 @@ const Auth: React.FC = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all hover:scale-[1.01]">
+        <div className="flex flex-col items-center mb-6">
+          {settings?.logoUrl ? (
+            <img 
+              src={settings.logoUrl} 
+              alt={settings.shopName} 
+              className="w-20 h-20 object-contain mb-2"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
+              <LogIn className="w-8 h-8 text-indigo-600" />
+            </div>
+          )}
+          <h2 className="text-xl font-bold text-gray-800">{settings?.shopName || 'Ganesh Dry Cleaner'}</h2>
+        </div>
+
         {isVerifyingEmail ? (
           <div className="text-center py-8">
             <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />

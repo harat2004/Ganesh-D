@@ -54,8 +54,13 @@
         },
         "totalQuantity": { "type": "number" },
         "totalAmount": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "processing", "completed"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "status": { "type": "string", "enum": ["pending", "receive", "processing", "ready", "delivery"] },
+        "paidAmount": { "type": "number" },
+        "pendingAmount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Cash", "GPay", "Other"] },
+        "paymentStatus": { "type": "string", "enum": ["pending", "partial", "paid"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["customerId", "items", "totalQuantity", "totalAmount", "status"]
     },

@@ -27,7 +27,8 @@ export interface OrderItem {
   price: number;
 }
 
-export type OrderStatus = 'pending' | 'processing' | 'completed';
+export type OrderStatus = 'pending' | 'receive' | 'processing' | 'ready' | 'delivery';
+export type PaymentStatus = 'pending' | 'partial' | 'paid';
 
 export interface Order {
   id: string;
@@ -39,7 +40,13 @@ export interface Order {
   totalQuantity: number;
   totalAmount: number;
   status: OrderStatus;
-  createdAt: any;
+  orderNumber: number;
+  paidAmount?: number;
+  pendingAmount?: number;
+  paymentMethod?: 'Cash' | 'GPay' | 'UPI';
+  paymentStatus?: PaymentStatus;
+  createdAt?: any;
+  updatedAt?: any;
   trackingId?: string;
 }
 
@@ -68,6 +75,10 @@ export interface Settings {
   metaWhatsAppConfig?: MetaWhatsAppConfig;
   popupConfig: PopupConfig;
   themeType: 'type1' | 'type2' | 'type3';
+  adminEmail?: string;
+  lastOrderNumber?: number;
+  upiId?: string;
+  upiName?: string;
 }
 
 export interface SocialLink {

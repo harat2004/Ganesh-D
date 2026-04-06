@@ -11,7 +11,8 @@ import {
   orderBy, 
   onSnapshot,
   Timestamp,
-  addDoc
+  addDoc,
+  increment
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
@@ -115,11 +116,37 @@ export const dbService = {
     }
   },
 
+  async incrementField(path: string, id: string, field: string, value: number) {
+    try {
+      await updateDoc(doc(db, path, id), { [field]: increment(value), updatedAt: Timestamp.now() });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `${path}/${id}`);
+    }
+  },
+
   async deleteDocument(path: string, id: string) {
     try {
       await deleteDoc(doc(db, path, id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `${path}/${id}`);
+    }
+  },
+
+  async clearCollection(path: string) {
+    try {
+      console.log(`Clearing collection: ${path}`);
+      const colRef = collection(db, path);
+      const querySnapshot = await getDocs(colRef);
+      console.log(`Found ${querySnapshot.docs.length} documents to delete in ${path}`);
+      const deletePromises = querySnapshot.docs.map(doc => {
+        console.log(`Deleting doc: ${doc.id} from ${path}`);
+        return deleteDoc(doc.ref);
+      });
+      await Promise.all(deletePromises);
+      console.log(`Successfully cleared collection: ${path}`);
+    } catch (error) {
+      console.error(`Error clearing collection ${path}:`, error);
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   },
 

@@ -25,7 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userData, settings, activeTab
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 shadow-sm">
         <div className="p-6 border-b border-gray-100 flex items-center gap-3">
           {settings?.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover" />
+            <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-contain" referrerPolicy="no-referrer" />
           ) : (
             <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
               {settings?.shopName?.[0] || 'S'}
@@ -74,9 +74,13 @@ const Layout: React.FC<LayoutProps> = ({ children, userData, settings, activeTab
       {/* Mobile Header */}
       <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
-            {settings?.shopName?.[0] || 'S'}
-          </div>
+          {settings?.logoUrl ? (
+            <img src={settings.logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-contain" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
+              {settings?.shopName?.[0] || 'S'}
+            </div>
+          )}
           <span className="font-bold text-gray-900 text-sm">{settings?.shopName || 'Shop Name'}</span>
         </div>
         <button
@@ -92,9 +96,13 @@ const Layout: React.FC<LayoutProps> = ({ children, userData, settings, activeTab
         <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setIsMobileMenuOpen(false)}>
           <div className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-xl flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-                {settings?.shopName?.[0] || 'S'}
-              </div>
+              {settings?.logoUrl ? (
+                <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-contain" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                  {settings?.shopName?.[0] || 'S'}
+                </div>
+              )}
               <span className="font-bold text-gray-900 truncate">{settings?.shopName || 'Shop Name'}</span>
             </div>
             <nav className="flex-1 p-4 space-y-1">

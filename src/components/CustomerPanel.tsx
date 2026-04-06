@@ -14,12 +14,22 @@ import {
   Package, 
   ExternalLink, 
   X, 
+  Edit2,
   MessageCircle,
   Phone,
   MapPin,
+  CreditCard,
   User as UserIcon,
   Share2,
-  Eye
+  Eye,
+  Instagram,
+  Facebook,
+  Twitter,
+  Youtube,
+  Linkedin,
+  Globe,
+  Map,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { where, orderBy, limit } from 'firebase/firestore';
@@ -42,6 +52,8 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
   const [items, setItems] = useState<Item[]>([]);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [showPopup, setShowPopup] = useState(false);
+  const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Order Flow State
   const [orderStep, setOrderStep] = useState(1);
@@ -49,13 +61,23 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
   const [selectedItem, setSelectedItem] = useState('');
   const [selectedService, setSelectedService] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [mobile, setMobile] = useState(userData?.mobile || '');
   const [address, setAddress] = useState(userData?.address || '');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'GPay' | 'UPI'>('Cash');
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
   useEffect(() => {
+    console.log('CustomerPanel: userData changed:', userData);
+    if (userData?.mobile && !mobile) setMobile(userData.mobile);
+    if (userData?.address && !address) setAddress(userData.address);
+  }, [userData]);
+
+  useEffect(() => {
+    let unsubscribeOrders = () => {};
     if (userData) {
       console.log('CustomerPanel: Fetching data for user:', userData.uid);
-      const unsubscribeOrders = dbService.subscribeToCollection<Order>(
+      unsubscribeOrders = dbService.subscribeToCollection<Order>(
         'orders', 
         [where('customerId', '==', userData.uid), orderBy('createdAt', 'desc'), limit(50)],
         (data) => {
@@ -63,6 +85,7 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
           setOrders(data);
         }
       );
+    }
       
       const unsubscribeItems = dbService.subscribeToCollection<Item>(
         'items',
@@ -88,18 +111,27 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
         unsubscribeItems();
         unsubscribeSocial();
       };
-    }
   }, [userData, settings]);
 
   const handleAddItem = () => {
     const item = items.find(i => i.name === selectedItem && i.service === selectedService);
     if (item) {
-      setCurrentItems([...currentItems, {
+      const newItem: OrderItem = {
         itemName: item.name,
         service: item.service,
         quantity,
         price: item.price
-      }]);
+      };
+
+      if (editingIndex !== null) {
+        const updatedItems = [...currentItems];
+        updatedItems[editingIndex] = newItem;
+        setCurrentItems(updatedItems);
+        setEditingIndex(null);
+      } else {
+        setCurrentItems([...currentItems, newItem]);
+      }
+      
       setSelectedItem('');
       setSelectedService('');
       setQuantity(1);
@@ -108,34 +140,100 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
 
   const handleRemoveItem = (index: number) => {
     setCurrentItems(currentItems.filter((_, i) => i !== index));
+    if (editingIndex === index) setEditingIndex(null);
+  };
+
+  const handleEditItem = (index: number) => {
+    const item = currentItems[index];
+    setSelectedItem(item.itemName);
+    setSelectedService(item.service);
+    setQuantity(item.quantity);
+    setEditingIndex(index);
+    // Scroll to top of add item section
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const totalAmount = currentItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalQuantity = currentItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleConfirmOrder = async () => {
-    if (!userData) return;
+    console.log('handleConfirmOrder called');
+    if (!userData) {
+      console.error('Order failed: No user data found');
+      alert('User data not loaded. Please refresh the page.');
+      return;
+    }
+    if (!settings) {
+      console.error('Order failed: No settings found');
+      alert('Settings not loaded. Please wait a moment.');
+      return;
+    }
+    if (isSubmitting) {
+      console.warn('Order failed: Already submitting');
+      return;
+    }
+    if (!mobile || !address) {
+      console.warn('Order failed: Missing mobile or address');
+      alert('Please enter your mobile number and delivery address.');
+      return;
+    }
+    if (currentItems.length === 0) {
+      console.warn('Order failed: No items in cart');
+      alert('Your cart is empty.');
+      return;
+    }
     
+    setIsSubmitting(true);
+    // Use the counter from settings to determine the next order number
+    const nextOrderNumber = (settings.lastOrderNumber || 10000) + 1;
+
     const newOrder: Omit<Order, 'id'> = {
       customerId: userData.uid,
-      customerName: userData.name,
+      customerName: userData.name || 'Customer',
       mobile,
       address,
       items: currentItems,
       totalQuantity,
       totalAmount,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      orderNumber: nextOrderNumber,
+      paymentMethod,
+      paymentStatus: 'pending',
+      paidAmount: 0,
+      pendingAmount: totalAmount
     };
 
     try {
-      await dbService.addDocument('orders', newOrder);
+      console.log('Attempting to create order in Firestore...', newOrder);
+      const orderRef = await dbService.addDocument('orders', newOrder);
+      console.log('Order created successfully with ID:', orderRef?.id);
+      
+      console.log('Attempting to increment lastOrderNumber in settings...');
+      // Increment the counter in settings atomically
+      await dbService.incrementField('settings', 'global', 'lastOrderNumber', 1);
+      console.log('Order number incremented successfully');
+      
+      // Send Email Notification to Admin and Customer
+      if (settings?.adminEmail) {
+        console.log('Triggering email notification...');
+        fetch('/api/send-order-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            adminEmail: settings.adminEmail,
+            customerEmail: userData.email,
+            orderData: { ...newOrder, orderNumber: nextOrderNumber }
+          }),
+        }).then(res => {
+          console.log('Email notification response status:', res.status);
+        }).catch(err => console.error('Email notification failed:', err));
+      }
       
       // WhatsApp Notification
       const orderSummary = currentItems.map(item => `${item.itemName} (${item.service}) x ${item.quantity}`).join(', ');
       
       if (settings?.metaWhatsAppConfig?.enabled && settings.contactNumber) {
-        // Send automatic message via Meta API
+        console.log('Sending WhatsApp via Meta API...');
         await sendMetaWhatsAppMessage(
           settings.metaWhatsAppConfig,
           settings.contactNumber,
@@ -143,18 +241,29 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
           `Order Total: ₹${totalAmount}. Items: ${orderSummary}`
         );
       } else if (settings?.whatsappApiUrl && settings?.contactNumber) {
-        // Fallback to direct link if Meta API is not enabled
+        console.log('Opening WhatsApp fallback link...');
         const message = `*New Order Received!*%0A%0A*Customer:* ${userData.name}%0A*Mobile:* ${mobile}%0A*Total Items:* ${totalQuantity}%0A*Total Amount:* ₹${totalAmount}%0A%0A*Items:*%0A${currentItems.map(item => `- ${item.itemName} (${item.service}) x ${item.quantity}`).join('%0A')}`;
         const whatsappUrl = `${settings.whatsappApiUrl}?phone=${settings.contactNumber}&text=${message}`;
         window.open(whatsappUrl, '_blank');
       }
 
+      console.log('Order process complete, showing success modal');
       // Reset state
       setOrderStep(1);
       setCurrentItems([]);
+      setShowOrderSuccess(true);
       setActiveTab('dashboard');
-    } catch (error) {
-      console.error('Error creating order:', error);
+    } catch (error: any) {
+      console.error('CRITICAL ERROR during order creation:', error);
+      let errorMessage = 'Failed to place order. ';
+      if (error.message && error.message.includes('permission-denied')) {
+        errorMessage += 'Permission denied. Please check if you are logged in correctly.';
+      } else {
+        errorMessage += error.message || 'Unknown error occurred.';
+      }
+      alert(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -167,7 +276,20 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
   const stats = {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
-    completed: orders.filter(o => o.status === 'completed').length,
+    delivered: orders.filter(o => o.status === 'delivery').length,
+  };
+
+  const getSocialIcon = (platform: string) => {
+    const p = platform.toLowerCase();
+    if (p.includes('instagram')) return <Instagram className="w-5 h-5" />;
+    if (p.includes('facebook')) return <Facebook className="w-5 h-5" />;
+    if (p.includes('whatsapp')) return <MessageCircle className="w-5 h-5" />;
+    if (p.includes('twitter') || p.includes(' x')) return <Twitter className="w-5 h-5" />;
+    if (p.includes('youtube')) return <Youtube className="w-5 h-5" />;
+    if (p.includes('linkedin')) return <Linkedin className="w-5 h-5" />;
+    if (p.includes('map') || p.includes('location') || p.includes('google maps')) return <MapPin className="w-5 h-5" />;
+    if (p.includes('website') || p.includes('web')) return <Globe className="w-5 h-5" />;
+    return <ExternalLink className="w-5 h-5" />;
   };
 
   return (
@@ -232,7 +354,7 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
             {[
               { label: 'Total Orders', value: stats.total, icon: <Package className="w-8 h-8 text-blue-500" />, bg: 'bg-blue-50' },
               { label: 'Pending', value: stats.pending, icon: <Clock className="w-8 h-8 text-amber-500" />, bg: 'bg-amber-50' },
-              { label: 'Completed', value: stats.completed, icon: <CheckCircle2 className="w-8 h-8 text-emerald-500" />, bg: 'bg-emerald-50' },
+              { label: 'Delivered', value: stats.delivered, icon: <CheckCircle2 className="w-8 h-8 text-emerald-500" />, bg: 'bg-emerald-50' },
             ].map((stat, i) => (
               <motion.div
                 key={i}
@@ -266,7 +388,7 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                     className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all group"
                   >
                     <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
-                      <ExternalLink className="w-5 h-5" />
+                      {getSocialIcon(link.platform)}
                     </div>
                     <span className="font-semibold capitalize">{link.platform}</span>
                   </a>
@@ -378,28 +500,63 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                       disabled={!selectedItem || !selectedService}
                       className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                     >
-                      <Plus className="w-5 h-5" />
-                      Add to List
+                      {editingIndex !== null ? (
+                        <>
+                          <CheckCircle2 className="w-5 h-5" />
+                          Update Item
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-5 h-5" />
+                          Add to List
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
 
                 <div className="border-t border-gray-100 pt-6">
-                  <h4 className="font-bold text-gray-900 mb-4">Current List</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-bold text-gray-900">Current List</h4>
+                    {editingIndex !== null && (
+                      <button 
+                        onClick={() => {
+                          setEditingIndex(null);
+                          setSelectedItem('');
+                          setSelectedService('');
+                          setQuantity(1);
+                        }}
+                        className="text-xs font-bold text-red-500 hover:text-red-600"
+                      >
+                        Cancel Edit
+                      </button>
+                    )}
+                  </div>
                   {currentItems.length === 0 ? (
                     <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">No items added yet</p>
                   ) : (
                     <div className="space-y-3">
                       {currentItems.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl group">
+                        <div key={index} className={`flex items-center justify-between p-4 rounded-xl group transition-all ${editingIndex === index ? 'bg-indigo-50 border border-indigo-200 ring-2 ring-indigo-100' : 'bg-gray-50 border border-transparent'}`}>
                           <div>
                             <p className="font-bold text-gray-900">{item.itemName}</p>
                             <p className="text-sm text-gray-500">{item.service} x {item.quantity}</p>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <p className="font-bold text-indigo-600">₹{item.price * item.quantity}</p>
-                            <button onClick={() => handleRemoveItem(index)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                              <Trash2 className="w-5 h-5" />
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-indigo-600 mr-2">₹{item.price * item.quantity}</p>
+                            <button 
+                              onClick={() => handleEditItem(index)} 
+                              className="p-2 text-indigo-500 hover:bg-indigo-100 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleRemoveItem(index)} 
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -455,6 +612,104 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
               </div>
 
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Payment Method</h3>
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                  {[
+                    { id: 'Cash', label: 'Cash on Delivery', icon: <ShoppingBag className="w-5 h-5" /> },
+                    { id: 'GPay', label: 'Google Pay', icon: <CreditCard className="w-5 h-5" /> },
+                    { id: 'UPI', label: 'UPI / PhonePe', icon: <CreditCard className="w-5 h-5" /> }
+                  ].map((method) => (
+                    <button
+                      key={method.id}
+                      onClick={() => {
+                        setPaymentMethod(method.id as any);
+                        setPaymentConfirmed(method.id === 'Cash');
+                      }}
+                      className={`py-4 px-2 rounded-2xl font-bold text-xs transition-all flex flex-col items-center gap-3 border-2 ${
+                        paymentMethod === method.id
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
+                          : 'bg-white text-gray-500 border-gray-100 hover:border-indigo-200'
+                      }`}
+                    >
+                      {method.icon}
+                      <span className="text-center leading-tight">{method.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {(paymentMethod === 'GPay' || paymentMethod === 'UPI') && settings?.upiId && (
+                  <div className="space-y-6">
+                    <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100 text-center">
+                      <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-4">Scan to Pay ₹{totalAmount}</p>
+                      
+                      {/* QR Code Generator using public API */}
+                      <div className="bg-white p-4 rounded-2xl inline-block shadow-sm mb-4 border border-indigo-100">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR`)}`}
+                          alt="Payment QR Code"
+                          className="w-40 h-40"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      
+                      <p className="text-lg font-bold text-indigo-900 mb-1">{settings.upiName || settings.shopName}</p>
+                      <p className="text-sm font-mono font-bold text-indigo-600 mb-6">{settings.upiId}</p>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        {paymentMethod === 'GPay' ? (
+                          <a 
+                            href={`intent://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`}
+                            className="flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                          >
+                            <ExternalLink className="w-5 h-5" />
+                            Open Google Pay
+                          </a>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-3">
+                            <a 
+                              href={`intent://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR#Intent;scheme=upi;package=com.phonepe.app;end`}
+                              className="flex items-center justify-center gap-2 py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-100"
+                            >
+                              PhonePe
+                            </a>
+                            <a 
+                              href={`upi://pay?pa=${settings.upiId}&pn=${encodeURIComponent(settings.upiName || settings.shopName)}&am=${totalAmount}&cu=INR`}
+                              className="flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                            >
+                              Other UPI
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {!paymentConfirmed && (
+                      <button
+                        onClick={() => setPaymentConfirmed(true)}
+                        className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"
+                      >
+                        <CheckCircle2 className="w-6 h-6" />
+                        I have completed the payment
+                      </button>
+                    )}
+                    
+                    {paymentConfirmed && (
+                      <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 text-center font-bold flex items-center justify-center gap-2">
+                        <CheckCircle2 className="w-5 h-5" />
+                        Payment Confirmed by You
+                        <button 
+                          onClick={() => setPaymentConfirmed(false)}
+                          className="text-xs underline ml-2 opacity-70"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Order Summary</h3>
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-gray-600">
@@ -480,14 +735,49 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                     Back
                   </button>
                   <button
-                    onClick={handleConfirmOrder}
-                    disabled={!mobile || !address}
-                    className="flex-[2] py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-200"
+                    onClick={() => {
+                      if (paymentMethod !== 'Cash' && !paymentConfirmed) {
+                        alert('Please complete the payment and click "I have completed the payment" first.');
+                        return;
+                      }
+                      console.log('Confirm Order button clicked');
+                      handleConfirmOrder();
+                    }}
+                    disabled={isSubmitting || !settings || (paymentMethod !== 'Cash' && !paymentConfirmed)}
+                    className={`flex-[2] py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-200 ${
+                      (isSubmitting || !settings || (paymentMethod !== 'Cash' && !paymentConfirmed))
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
                   >
-                    Confirm Order
-                    <CheckCircle2 className="w-5 h-5" />
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : !settings ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Loading Settings...
+                      </>
+                    ) : (
+                      <>
+                        Confirm Order
+                        <CheckCircle2 className="w-5 h-5" />
+                      </>
+                    )}
                   </button>
                 </div>
+                {(!mobile || !address) && !isSubmitting && (
+                  <p className="text-center text-sm text-red-500 mt-2 font-medium">
+                    Please fill mobile number and delivery address to confirm.
+                  </p>
+                )}
+                {paymentMethod !== 'Cash' && !paymentConfirmed && !isSubmitting && (
+                  <p className="text-center text-sm text-amber-600 mt-2 font-bold">
+                    ⚠️ Complete payment to enable "Confirm Order" button.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -520,12 +810,14 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order ID</p>
-                      <p className="font-mono text-sm text-gray-600">{order.id.slice(-8).toUpperCase()}</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order No.</p>
+                      <p className="font-bold text-indigo-600">#{order.orderNumber || order.id.slice(-8).toUpperCase()}</p>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                      order.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
+                      order.status === 'delivery' ? 'bg-emerald-100 text-emerald-600' :
+                      order.status === 'ready' ? 'bg-purple-100 text-purple-600' :
                       order.status === 'processing' ? 'bg-blue-100 text-blue-600' :
+                      order.status === 'receive' ? 'bg-indigo-100 text-indigo-600' :
                       'bg-amber-100 text-amber-600'
                     }`}>
                       {order.status}
@@ -569,6 +861,30 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
           )}
         </div>
       )}
+      <AnimatePresence>
+        {showOrderSuccess && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden text-center p-8"
+            >
+              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Order Successful!</h3>
+              <p className="text-gray-500 mb-8">Your order has been placed successfully. You can track its status in the "My Orders" tab.</p>
+              <button
+                onClick={() => setShowOrderSuccess(false)}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all"
+              >
+                Great, Thanks!
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 };

@@ -3,6 +3,7 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from './firebase';
 import { dbService } from './services/db';
 import { User, Settings } from './types';
+import { ADMIN_EMAILS } from './constants';
 import Auth from './components/Auth';
 import CustomerPanel from './components/CustomerPanel';
 import AdminPanel from './components/AdminPanel';
@@ -18,67 +19,90 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeUser: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
+      
+      if (unsubscribeUser) {
+        unsubscribeUser();
+        unsubscribeUser = null;
+      }
+
       if (user) {
-        let data = await dbService.getDocument<User>('users', user.uid);
-        
-        // Force admin role for the specific email
-        const adminEmail = 'shreecharbhujadigitalstudio@gmail.com';
-        if (user.email === adminEmail) {
-          if (!data || data.role !== 'admin') {
-            const adminData: User = data ? { ...data, role: 'admin' } : {
+        // Subscribe to user document to handle new user creation delay
+        unsubscribeUser = dbService.subscribeToDocument<User>('users', user.uid, async (data) => {
+          let finalData = data;
+          
+          // Initial check with hardcoded email if doc doesn't exist or role is wrong
+          const userEmail = user.email?.toLowerCase();
+          const isAdminEmail = userEmail && ADMIN_EMAILS.some(email => email.toLowerCase() === userEmail);
+
+          if (!finalData) {
+            // Create default user document if missing
+            const newUser: User = {
               uid: user.uid,
-              name: user.displayName || 'Admin',
-              email: user.email,
-              role: 'admin',
+              name: user.displayName || 'Customer',
+              email: user.email || '',
+              role: isAdminEmail ? 'admin' : 'customer',
               isBlocked: false,
               createdAt: new Date().toISOString()
             };
-            await dbService.setDocument('users', user.uid, adminData);
-            data = adminData;
+            console.log('Creating missing user document:', newUser);
+            await dbService.setDocument('users', user.uid, newUser);
+            finalData = newUser;
+          } else if (isAdminEmail && finalData.role !== 'admin') {
+            // Update role to admin if it's a hardcoded admin email
+            const updatedData = { ...finalData, role: 'admin' as const };
+            await dbService.setDocument('users', user.uid, updatedData);
+            finalData = updatedData;
           }
-        }
-        
-        setUserData(data);
+          
+          setUserData(finalData);
+          setIsAuthReady(true);
+          setLoading(false);
+        });
       } else {
         setUserData(null);
+        setIsAuthReady(true);
+        setLoading(false);
       }
-      setIsAuthReady(true);
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUser) unsubscribeUser();
+    };
   }, []);
 
   useEffect(() => {
-    if (isAuthReady && firebaseUser) {
-      const unsubscribe = dbService.subscribeToDocument<Settings>('settings', 'global', async (data) => {
-        if (!data && userData?.role === 'admin') {
-          // Initialize default settings if they don't exist
-          const defaultSettings: Settings = {
-            shopName: 'My Digital Studio',
-            logoUrl: '',
-            address: '123 Studio Street, City',
-            contactNumber: '1234567890',
-            whatsappApiUrl: 'https://api.whatsapp.com/send',
-            popupConfig: {
-              imageUrl: 'https://picsum.photos/seed/offer/800/400',
-              text: 'Welcome to our new store! Get 20% off on your first order.',
-              link: '',
-              show: true
-            },
-            themeType: 'type1'
-          };
-          await dbService.setDocument('settings', 'global', defaultSettings);
-        }
-        setSettings(data);
-      });
-      return () => unsubscribe();
-    } else {
-      setSettings(null);
-    }
-  }, [isAuthReady, userData, firebaseUser]);
+    const unsubscribe = dbService.subscribeToDocument<Settings>('settings', 'global', async (data) => {
+      if (!data && userData?.role === 'admin') {
+        // Initialize default settings if they don't exist
+        const defaultSettings: Settings = {
+          shopName: 'Ganesh Dry Cleaner',
+          adminEmail: ADMIN_EMAILS[0],
+          logoUrl: 'https://cdn-icons-png.flaticon.com/512/2970/2970922.png',
+          address: 'Main Market, Your City',
+          contactNumber: '9876543210',
+          whatsappApiUrl: 'https://api.whatsapp.com/send',
+          popupConfig: {
+            imageUrl: 'https://picsum.photos/seed/dryclean/800/400',
+            text: 'Welcome to Ganesh Dry Cleaner! Quality service at your doorstep.',
+            link: '',
+            show: true
+          },
+          themeType: 'type1',
+          lastOrderNumber: 10000,
+          upiId: '',
+          upiName: ''
+        };
+        await dbService.setDocument('settings', 'global', defaultSettings);
+      }
+      setSettings(data);
+    });
+    return () => unsubscribe();
+  }, [userData]);
 
   if (loading) {
     return (
@@ -93,6 +117,8 @@ const App: React.FC = () => {
   };
 
   const displayUser = impersonatedUser || userData;
+  const userEmail = firebaseUser?.email?.toLowerCase();
+  const isAdmin = userEmail && ADMIN_EMAILS.some(email => email.toLowerCase() === userEmail);
 
   const urlParams = new URLSearchParams(window.location.search);
   const isAuthAction = urlParams.has('oobCode');
@@ -100,7 +126,7 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       {(!firebaseUser || isAuthAction) ? (
-        <Auth />
+        <Auth settings={settings} />
       ) : displayUser?.isBlocked ? (
         <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-4 text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Account Blocked</h1>
@@ -112,7 +138,7 @@ const App: React.FC = () => {
             Logout
           </button>
         </div>
-      ) : displayUser?.role === 'admin' ? (
+      ) : (displayUser?.role === 'admin' && isAdmin) ? (
         <AdminPanel userData={displayUser} settings={settings} onImpersonate={handleImpersonate} />
       ) : (
         <CustomerPanel 

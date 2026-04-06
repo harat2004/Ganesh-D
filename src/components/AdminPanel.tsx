@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  verifyBeforeUpdateEmail,
+  updatePassword
+} from 'firebase/auth';
+import { auth } from '../firebase';
 import { User, Settings, Order, Item, SocialLink, OrderStatus } from '../types';
+import { ADMIN_EMAILS } from '../constants';
 import { dbService } from '../services/db';
 import { sendMetaWhatsAppMessage } from '../services/whatsapp';
 import Layout from './Layout';
@@ -16,14 +24,21 @@ import {
   Edit,
   Trash2,
   Plus,
+  Wallet,
+  CreditCard,
+  BellRing,
   CheckCircle2,
   Clock,
   AlertCircle,
+  AlertTriangle,
   Eye,
   EyeOff,
+  Loader2,
+  Mail,
   UserCheck,
   UserX,
   Save,
+  ShieldCheck,
   Image as ImageIcon,
   Link as LinkIcon,
   MessageCircle,
@@ -32,7 +47,17 @@ import {
   Calendar,
   ChevronRight,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  ExternalLink,
+  Instagram,
+  Facebook,
+  Twitter,
+  Youtube,
+  Linkedin,
+  Globe,
+  Map,
+  User as UserIcon,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { where, orderBy, Timestamp, limit } from 'firebase/firestore';
@@ -69,7 +94,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
   // Filters & Search
   const [orderSearch, setOrderSearch] = useState('');
   const [orderDateFilter, setOrderDateFilter] = useState('');
+  const [dashboardFilter, setDashboardFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'year' | 'all'>('all');
   const [userSearch, setUserSearch] = useState('');
+  const [paymentSearch, setPaymentSearch] = useState('');
+
+  // Payment Modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<Order | null>(null);
+  const [paymentReceived, setPaymentReceived] = useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'GPay' | 'Other'>('Cash');
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Item Form
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -77,6 +111,89 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
 
   // Settings Form
   const [tempSettings, setTempSettings] = useState<Settings | null>(settings);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
+  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
+  // Profile Form
+  const [profileName, setProfileName] = useState(userData?.name || '');
+  const [profileMobile, setProfileMobile] = useState(userData?.mobile || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
+  const [isClearingData, setIsClearingData] = useState(false);
+  const [dangerZonePassword, setDangerZonePassword] = useState('');
+  const [confirmDanger, setConfirmDanger] = useState(false);
+
+  useEffect(() => {
+    if (userData) {
+      setProfileName(userData.name || '');
+      setProfileMobile(userData.mobile || '');
+    }
+  }, [userData]);
+
+  const handleResendVerification = async () => {
+    if (!tempSettings?.adminEmail) return;
+    setIsResending(true);
+    setVerifyError(null);
+    setVerifySuccess(null);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('No user found.');
+      await verifyBeforeUpdateEmail(user, tempSettings.adminEmail);
+      
+      setVerifySuccess('Verification link resent! Please check for an email from "Firebase" in your inbox or Spam folder.');
+    } catch (err: any) {
+      setVerifyError('Failed to resend: ' + err.message);
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    setIsTestingSmtp(true);
+    setVerifyError(null);
+    setVerifySuccess(null);
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) throw new Error('No user found');
+      
+      const response = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          otp: 'TEST12',
+          newEmail: 'TEST_CONNECTION'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        let errorMsg = errorData.error + (errorData.details ? ': ' + errorData.details : '');
+        if (errorMsg.includes('BadCredentials')) {
+          errorMsg = "Invalid Login: Please check your Gmail App Password in Settings > Secrets. Ensure it is exactly 16 characters (no spaces).";
+        }
+        throw new Error(errorMsg);
+      }
+      setVerifySuccess('SMTP Connection Successful! Test email sent to ' + user.email);
+    } catch (err: any) {
+      setVerifyError('SMTP Test Failed: ' + err.message);
+    } finally {
+      setIsTestingSmtp(false);
+    }
+  };
 
   // Retail Order State
   const [retailOrder, setRetailOrder] = useState<{ customerName: string; mobile: string; address: string; items: any[] }>({
@@ -108,14 +225,63 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
   }, [settings]);
 
   // Stats Calculations
+  const filteredOrders = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+
+    return orders.filter(o => {
+      const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+      if (isNaN(d.getTime())) return dashboardFilter === 'all';
+
+      switch (dashboardFilter) {
+        case 'today':
+          return d >= today;
+        case 'yesterday':
+          return d >= yesterday && d < today;
+        case 'week':
+          return d >= startOfWeek;
+        case 'month':
+          return d >= startOfMonth;
+        case 'year':
+          return d >= startOfYear;
+        default:
+          return true;
+      }
+    });
+  }, [orders, dashboardFilter]);
+
   const stats = useMemo(() => ({
     totalCustomers: users.filter(u => u.role === 'customer').length,
-    totalOrders: orders.length,
-    pendingOrders: orders.filter(o => o.status === 'pending').length,
-    processingOrders: orders.filter(o => o.status === 'processing').length,
-    completedOrders: orders.filter(o => o.status === 'completed').length,
-    totalRevenue: orders.reduce((sum, o) => sum + o.totalAmount, 0),
-  }), [users, orders]);
+    totalOrders: filteredOrders.length,
+    pendingOrders: filteredOrders.filter(o => o.status === 'pending').length,
+    receiveOrders: filteredOrders.filter(o => o.status === 'receive').length,
+    processingOrders: filteredOrders.filter(o => o.status === 'processing').length,
+    readyOrders: filteredOrders.filter(o => o.status === 'ready').length,
+    deliveryOrders: filteredOrders.filter(o => o.status === 'delivery').length,
+    totalRevenue: filteredOrders.reduce((sum, o) => sum + o.totalAmount, 0),
+    totalPendingAmount: orders.reduce((sum, o) => sum + (o.pendingAmount || 0), 0),
+  }), [users, filteredOrders, orders]);
+
+  const filteredPayments = useMemo(() => {
+    return orders
+      .filter(o => (o.pendingAmount || 0) > 0)
+      .filter(o => {
+        const search = paymentSearch.toLowerCase();
+        return (
+          (o.customerName || '').toLowerCase().includes(search) ||
+          (o.mobile || '').includes(search) ||
+          (o.orderNumber || '').toString().includes(search)
+        );
+      });
+  }, [orders, paymentSearch]);
 
   // Chart Data
   const chartData = useMemo(() => {
@@ -127,23 +293,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
 
     return last7Days.map(date => ({
       date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-      orders: orders.filter(o => {
+      orders: filteredOrders.filter(o => {
         const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
         const createdAtStr = !isNaN(d.getTime()) ? d.toISOString() : '';
         return createdAtStr.startsWith(date);
       }).length,
-      revenue: orders.filter(o => {
+      revenue: filteredOrders.filter(o => {
         const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
         const createdAtStr = !isNaN(d.getTime()) ? d.toISOString() : '';
         return createdAtStr.startsWith(date);
       }).reduce((sum, o) => sum + o.totalAmount, 0),
     }));
-  }, [orders]);
+  }, [filteredOrders]);
 
   const statusData = [
     { name: 'Pending', value: stats.pendingOrders, color: '#f59e0b' },
+    { name: 'Received', value: stats.receiveOrders, color: '#6366f1' },
     { name: 'Processing', value: stats.processingOrders, color: '#3b82f6' },
-    { name: 'Completed', value: stats.completedOrders, color: '#10b981' },
+    { name: 'Ready', value: stats.readyOrders, color: '#8b5cf6' },
+    { name: 'Delivered', value: stats.deliveryOrders, color: '#10b981' },
   ];
 
   // PDF Generation
@@ -215,18 +383,114 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
-    await dbService.updateDocument('orders', orderId, { status });
-    
-    // Send status update notification
     const order = orders.find(o => o.id === orderId);
-    if (order && settings?.metaWhatsAppConfig?.enabled) {
-      const statusText = status.charAt(0).toUpperCase() + status.slice(1);
-      await sendMetaWhatsAppMessage(
-        settings.metaWhatsAppConfig,
-        order.mobile,
-        order.customerName,
-        `Your order status has been updated to: ${statusText}`
-      );
+    if (!order) return;
+
+    if (status === 'delivery' && (order.paymentStatus !== 'paid')) {
+      setSelectedOrderForPayment(order);
+      setPaymentReceived(order.pendingAmount || 0);
+      setShowPaymentModal(true);
+      return;
+    }
+
+    try {
+      await dbService.updateDocument('orders', orderId, { status });
+      
+      const statusLabels: { [key: string]: string } = {
+        pending: 'Pending',
+        receive: 'Received',
+        processing: 'Processing',
+        ready: 'Ready for Delivery',
+        delivery: 'Delivered'
+      };
+
+      const statusText = statusLabels[status] || status;
+
+      // 1. WhatsApp Notification
+      if (settings?.metaWhatsAppConfig?.enabled) {
+        await sendMetaWhatsAppMessage(
+          settings.metaWhatsAppConfig,
+          order.mobile,
+          order.customerName,
+          `Your order status has been updated to: ${statusText}`
+        );
+      }
+
+      // 2. Email Notification
+      const customer = users.find(u => u.uid === order.customerId);
+      if (customer?.email) {
+        fetch('/api/send-status-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerEmail: customer.email,
+            orderData: order,
+            newStatus: status
+          }),
+        }).catch(err => console.error('Status update email failed:', err));
+      }
+
+      console.log(`Order ${orderId} status updated to ${status}`);
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+      alert('Failed to update status. Please try again.');
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedOrderForPayment) return;
+    setPaymentLoading(true);
+
+    try {
+      const totalPaid = (selectedOrderForPayment.paidAmount || 0) + paymentReceived;
+      const pendingAmount = selectedOrderForPayment.totalAmount - totalPaid;
+      const paymentStatus = pendingAmount <= 0 ? 'paid' : (totalPaid > 0 ? 'partial' : 'pending');
+
+      const updateData = {
+        paidAmount: totalPaid,
+        pendingAmount: Math.max(0, pendingAmount),
+        paymentMethod,
+        paymentStatus,
+        status: 'delivery' as OrderStatus,
+        updatedAt: new Date().toISOString()
+      };
+
+      await dbService.updateDocument('orders', selectedOrderForPayment.id, updateData);
+
+      // Send payment update notification
+      if (settings?.metaWhatsAppConfig?.enabled) {
+        const message = `Payment Received: ₹${paymentReceived}. Total Paid: ₹${totalPaid}. Remaining Balance: ₹${Math.max(0, pendingAmount)}. Status: ${paymentStatus.toUpperCase()}`;
+        await sendMetaWhatsAppMessage(
+          settings.metaWhatsAppConfig,
+          selectedOrderForPayment.mobile,
+          selectedOrderForPayment.customerName,
+          message
+        );
+      }
+
+      // Send payment update email
+      const customer = users.find(u => u.uid === selectedOrderForPayment.customerId);
+      if (customer?.email) {
+        fetch('/api/send-payment-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerEmail: customer.email,
+            orderData: { ...selectedOrderForPayment, ...updateData },
+            paymentReceived,
+            paymentMethod
+          }),
+        }).catch(err => console.error('Payment update email failed:', err));
+      }
+
+      setShowPaymentModal(false);
+      setSelectedOrderForPayment(null);
+      setPaymentReceived(0);
+    } catch (error) {
+      console.error('Failed to confirm payment:', error);
+      alert('Failed to process payment. Please try again.');
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -242,6 +506,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
         order.customerName,
         `Your order has been shipped! Tracking ID: ${trackingId}`
       );
+    }
+  };
+
+  const handleSendPaymentReminder = async (order: Order) => {
+    if (!settings?.metaWhatsAppConfig?.enabled) {
+      alert('WhatsApp notification is not enabled in settings.');
+      return;
+    }
+
+    const message = `Reminder: You have a pending payment of ₹${order.pendingAmount} for Order #${order.orderNumber}. Please clear it at your earliest convenience. Thank you!`;
+
+    try {
+      await sendMetaWhatsAppMessage(
+        settings.metaWhatsAppConfig,
+        order.mobile,
+        order.customerName,
+        message
+      );
+      alert('Reminder sent successfully!');
+    } catch (error) {
+      console.error('Failed to send reminder:', error);
+      alert('Failed to send reminder. Please try again.');
     }
   };
 
@@ -261,20 +547,302 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
     }
   };
 
+  const handleUpdateAdminEmail = async () => {
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      setVerifyError('No authenticated user found.');
+      return;
+    }
+
+    const isGoogleUser = user.providerData.some(p => p.providerId === 'google.com');
+    
+    if (!newAdminEmail || (!isGoogleUser && !adminPassword)) {
+      setVerifyError(isGoogleUser ? 'Please enter the new admin email.' : 'Please enter both new email and your current password.');
+      return;
+    }
+    
+    setVerifyLoading(true);
+    setVerifyError(null);
+    setVerifySuccess(null);
+    
+    try {
+      // 1. Re-authenticate for password users
+      if (!isGoogleUser) {
+        const credential = EmailAuthProvider.credential(user.email, adminPassword);
+        await reauthenticateWithCredential(user, credential);
+      }
+
+      // 2. Generate OTP
+      const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(newOtp);
+
+      // 3. Send OTP to OLD Email (Current Email) via Backend API
+      const response = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          otp: newOtp,
+          newEmail: newAdminEmail
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`${errorData.error}${errorData.details ? ': ' + errorData.details : ''}`);
+      }
+      
+      setVerifySuccess(`Verification OTP sent to your CURRENT email: ${user.email}. Please enter it below.`);
+      setIsVerifying(true); 
+    } catch (err: any) {
+      console.error('Admin Email Update Error:', err);
+      setVerifyError(err.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleFinalizeEmailUpdate = async () => {
+    if (otp !== generatedOtp) {
+      setVerifyError('Invalid OTP. Please check your old email.');
+      return;
+    }
+
+    setVerifyLoading(true);
+    setVerifyError(null);
+    
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) throw new Error('No user found.');
+      const isGoogleUser = user.providerData.some(p => p.providerId === 'google.com');
+
+      // 1. Re-authenticate to ensure session is fresh (for password users)
+      if (!isGoogleUser) {
+        try {
+          const credential = EmailAuthProvider.credential(user.email, adminPassword);
+          await reauthenticateWithCredential(user, credential);
+        } catch (authErr: any) {
+          throw new Error('Authentication failed: Please check your password.');
+        }
+      }
+
+      // 2. Update Firestore Settings IMMEDIATELY (This changes where orders/OTPs go)
+      if (tempSettings) {
+        const updatedSettings = { ...tempSettings, adminEmail: newAdminEmail };
+        await dbService.setDocument('settings', 'global', updatedSettings);
+        setTempSettings(updatedSettings);
+        
+        // Update user role for the new email if they already have an account
+        const usersList = await dbService.getCollection<User>('users', [where('email', '==', newAdminEmail)]);
+        if (usersList.length > 0) {
+          await dbService.updateDocument('users', usersList[0].uid, { role: 'admin' });
+        }
+      }
+
+      // 3. Attempt to update Login Email (Firebase Auth) - Only for password users
+      let loginEmailUpdated = false;
+      if (!isGoogleUser) {
+        try {
+          await verifyBeforeUpdateEmail(user, newAdminEmail);
+          loginEmailUpdated = true;
+        } catch (authErr: any) {
+          console.warn('Firebase Auth update failed (Link not sent):', authErr);
+        }
+      }
+
+      if (isGoogleUser) {
+        setVerifySuccess('Success! Your notification email has been updated. You will now receive orders at ' + newAdminEmail + '. (Note: Google login email cannot be changed here).');
+      } else if (loginEmailUpdated) {
+        setVerifySuccess('Success! Your notification email has been updated. A verification link for your LOGIN email was also sent to ' + newAdminEmail + '.');
+      } else {
+        setVerifySuccess('Success! Your notification email has been updated. You will now receive orders at ' + newAdminEmail + '. (Note: Login email could not be updated, please use your old email to login).');
+      }
+
+      setIsVerifying(false);
+      setNewAdminEmail('');
+      setAdminPassword('');
+      setOtp('');
+      setGeneratedOtp('');
+      
+    } catch (err: any) {
+      console.error('Finalize Error:', err);
+      setVerifyError(err.message || 'Failed to update email.');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userData) return;
+    
+    setProfileLoading(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+
+    try {
+      // Update Firestore
+      await dbService.updateDocument('users', userData.uid, {
+        name: profileName,
+        mobile: profileMobile
+      });
+
+      // Update Password if requested
+      if (currentPassword && newPassword) {
+        if (newPassword !== confirmPassword) {
+          throw new Error('New passwords do not match.');
+        }
+        
+        const user = auth.currentUser;
+        if (!user || !user.email) throw new Error('User session expired.');
+
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+        await updatePassword(user, newPassword);
+        
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+
+      setProfileSuccess('Profile updated successfully!');
+    } catch (err: any) {
+      console.error('Profile Update Error:', err);
+      setProfileError(err.message || 'Failed to update profile.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleClearOrders = async () => {
+    console.log('handleClearOrders triggered. Password:', dangerZonePassword, 'Confirmed:', confirmDanger);
+    if (dangerZonePassword !== 'Admin@2026') {
+      console.log('Incorrect password entered:', dangerZonePassword);
+      alert('Incorrect Danger Zone password!');
+      return;
+    }
+    if (!confirmDanger) {
+      alert('Please check the confirmation box first.');
+      return;
+    }
+    
+    setIsClearingData(true);
+    try {
+      console.log('Calling dbService.clearCollection for orders...');
+      await dbService.clearCollection('orders');
+      console.log('Orders cleared successfully.');
+      alert('All orders have been cleared successfully.');
+      setDangerZonePassword('');
+      setConfirmDanger(false);
+    } catch (err: any) {
+      console.error('Failed to clear orders:', err);
+      alert('Failed to clear orders: ' + err.message);
+    } finally {
+      setIsClearingData(false);
+    }
+  };
+
+  const handleClearCustomers = async () => {
+    console.log('handleClearCustomers triggered. Password:', dangerZonePassword, 'Confirmed:', confirmDanger);
+    if (dangerZonePassword !== 'Admin@2026') {
+      console.log('Incorrect password entered:', dangerZonePassword);
+      alert('Incorrect Danger Zone password!');
+      return;
+    }
+    if (!confirmDanger) {
+      alert('Please check the confirmation box first.');
+      return;
+    }
+
+    setIsClearingData(true);
+    try {
+      console.log('Filtering customers from users list...');
+      console.log('Total users in state:', users.length);
+      // We only want to delete users with role 'customer'
+      const customers = users.filter(u => u.role === 'customer');
+      console.log(`Found ${customers.length} customers to delete.`);
+      
+      if (customers.length === 0) {
+        alert('No customers found to clear.');
+        setIsClearingData(false);
+        return;
+      }
+
+      const deletePromises = customers.map(c => {
+        console.log(`Deleting customer: ${c.uid} (${c.email})`);
+        return dbService.deleteDocument('users', c.uid);
+      });
+      await Promise.all(deletePromises);
+      console.log('Customers cleared successfully.');
+      alert('All customers have been cleared successfully.');
+      setDangerZonePassword('');
+      setConfirmDanger(false);
+    } catch (err: any) {
+      console.error('Failed to clear customers:', err);
+      alert('Failed to clear customers: ' + err.message);
+    } finally {
+      setIsClearingData(false);
+    }
+  };
+
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { id: 'orders', label: 'Orders', icon: <ShoppingBag className="w-5 h-5" /> },
     { id: 'retail', label: 'Retail Customer', icon: <Users className="w-5 h-5" /> },
     { id: 'items', label: 'Items', icon: <Package className="w-5 h-5" /> },
     { id: 'social', label: 'Social Media', icon: <Share2 className="w-5 h-5" /> },
+    { id: 'payments', label: 'Payments', icon: <Wallet className="w-5 h-5" /> },
     { id: 'users', label: 'Users', icon: <UserCheck className="w-5 h-5" /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-5 h-5" /> },
+    { id: 'profile', label: 'Profile', icon: <UserIcon className="w-5 h-5" /> },
   ];
+
+  const getSocialIcon = (platform: string) => {
+    const p = platform.toLowerCase();
+    if (p.includes('instagram')) return <Instagram className="w-5 h-5" />;
+    if (p.includes('facebook')) return <Facebook className="w-5 h-5" />;
+    if (p.includes('whatsapp')) return <MessageCircle className="w-5 h-5" />;
+    if (p.includes('twitter') || p.includes(' x')) return <Twitter className="w-5 h-5" />;
+    if (p.includes('youtube')) return <Youtube className="w-5 h-5" />;
+    if (p.includes('linkedin')) return <Linkedin className="w-5 h-5" />;
+    if (p.includes('map') || p.includes('location') || p.includes('google maps')) return <MapPin className="w-5 h-5" />;
+    if (p.includes('website') || p.includes('web')) return <Globe className="w-5 h-5" />;
+    return <ExternalLink className="w-5 h-5" />;
+  };
 
   return (
     <Layout userData={userData} settings={settings} activeTab={activeTab} setActiveTab={setActiveTab} tabs={tabs}>
       {activeTab === 'dashboard' && (
         <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Dashboard Overview</h2>
+            </div>
+            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+              {[
+                { id: 'today', label: 'Today' },
+                { id: 'yesterday', label: 'Yesterday' },
+                { id: 'week', label: 'Week' },
+                { id: 'month', label: 'Month' },
+                { id: 'year', label: 'Year' },
+                { id: 'all', label: 'All Time' },
+              ].map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setDashboardFilter(filter.id as any)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    dashboardFilter === filter.id
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
+                      : 'text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { label: 'Customers', value: stats.totalCustomers, icon: <Users className="w-6 h-6" />, color: 'bg-blue-500' },
@@ -389,11 +957,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Order ID</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Order No.</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date & Time</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Items</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Payment</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Tracking ID</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -402,7 +971,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                 <tbody className="divide-y divide-gray-100">
                   {orders
                     .filter(o => {
-                      const matchesSearch = (o.customerName.toLowerCase().includes(orderSearch.toLowerCase()) || o.id.includes(orderSearch));
+                      const matchesSearch = (
+                        o.customerName.toLowerCase().includes(orderSearch.toLowerCase()) || 
+                        o.id.includes(orderSearch) ||
+                        (o.orderNumber && o.orderNumber.toString().includes(orderSearch))
+                      );
                       const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
                       const createdAtStr = !isNaN(d.getTime()) ? d.toISOString() : '';
                       const matchesDate = !orderDateFilter || createdAtStr.startsWith(orderDateFilter);
@@ -410,7 +983,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                     })
                     .map((order) => (
                       <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-mono text-sm text-gray-600">#{order.id.slice(-8).toUpperCase()}</td>
+                        <td className="px-6 py-4 font-bold text-sm text-indigo-600">
+                          #{order.orderNumber || order.id.slice(-8).toUpperCase()}
+                        </td>
                         <td className="px-6 py-4">
                           <p className="text-sm font-medium text-gray-900">
                             {(() => {
@@ -441,6 +1016,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                         </td>
                         <td className="px-6 py-4 font-bold text-indigo-600">₹{order.totalAmount}</td>
                         <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${
+                              order.paymentMethod === 'UPI' ? 'bg-purple-100 text-purple-600' :
+                              order.paymentMethod === 'GPay' ? 'bg-blue-100 text-blue-600' :
+                              order.paymentMethod === 'Cash' ? 'bg-emerald-100 text-emerald-600' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {order.paymentMethod || 'Cash'}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${
+                              order.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-600' :
+                              order.paymentStatus === 'partial' ? 'bg-amber-100 text-amber-600' :
+                              'bg-red-100 text-red-600'
+                            }`}>
+                              {order.paymentStatus || 'pending'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
                           <input
                             type="text"
                             placeholder="Tracking ID"
@@ -456,16 +1050,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                         <td className="px-6 py-4">
                           <select
                             className={`text-xs font-bold px-3 py-1 rounded-full border-none outline-none cursor-pointer ${
-                              order.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
+                              order.status === 'delivery' ? 'bg-emerald-100 text-emerald-600' :
+                              order.status === 'ready' ? 'bg-purple-100 text-purple-600' :
                               order.status === 'processing' ? 'bg-blue-100 text-blue-600' :
+                              order.status === 'receive' ? 'bg-indigo-100 text-indigo-600' :
                               'bg-amber-100 text-amber-600'
                             }`}
                             value={order.status}
                             onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
                           >
                             <option value="pending">Pending</option>
+                            <option value="receive">Received</option>
                             <option value="processing">Processing</option>
-                            <option value="completed">Completed</option>
+                            <option value="ready">Ready</option>
+                            <option value="delivery">Delivered</option>
                           </select>
                         </td>
                         <td className="px-6 py-4">
@@ -662,6 +1260,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                 <tbody className="divide-y divide-gray-100">
                   {users
                     .filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()))
+                    .filter(u => u.role === 'customer' || u.email === 'ganeshdrycleaner@gmail.com')
                     .map((user) => (
                       <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
@@ -792,6 +1391,46 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
                     value={tempSettings.address}
                     onChange={(e) => setTempSettings({ ...tempSettings, address: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Next Order Number (Counter)</label>
+                  <input
+                    type="number"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={tempSettings.lastOrderNumber || 10000}
+                    onChange={(e) => setTempSettings({ ...tempSettings, lastOrderNumber: parseInt(e.target.value) })}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">This number will be incremented for each new order.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-indigo-600" />
+                UPI Payment Settings
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">UPI ID (VPA)</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={tempSettings.upiId || ''}
+                    onChange={(e) => setTempSettings({ ...tempSettings, upiId: e.target.value })}
+                    placeholder="e.g. yourname@upi"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Customers will use this ID to make direct payments.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">UPI Name (Payee Name)</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={tempSettings.upiName || ''}
+                    onChange={(e) => setTempSettings({ ...tempSettings, upiName: e.target.value })}
+                    placeholder="e.g. Ganesh Dry Cleaner"
                   />
                 </div>
               </div>
@@ -951,6 +1590,64 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   </div>
                 </div>
               </div>
+
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 space-y-6">
+                <h3 className="text-xl font-bold text-red-600 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Danger Zone
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Use these actions with extreme caution. Deleting data is permanent and cannot be reversed.
+                </p>
+                
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="max-w-xs flex-1">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Enter Danger Zone Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="password"
+                        className="w-full pl-10 pr-4 py-2 bg-red-50 border border-red-100 rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                        placeholder="Enter Password"
+                        value={dangerZonePassword}
+                        onChange={(e) => setDangerZonePassword(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-[10px] text-red-400 mt-1 font-medium">Password is <strong>Admin@2026</strong> (required to enable buttons).</p>
+                  </div>
+                  <div className="flex items-center gap-3 bg-red-50/50 p-4 rounded-xl border border-red-100/50 flex-1">
+                    <input
+                      type="checkbox"
+                      id="confirmDanger"
+                      className="w-5 h-5 rounded border-red-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                      checked={confirmDanger}
+                      onChange={(e) => setConfirmDanger(e.target.checked)}
+                    />
+                    <label htmlFor="confirmDanger" className="text-sm font-medium text-red-900 cursor-pointer select-none">
+                      I understand that these actions are permanent and cannot be reversed.
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={handleClearOrders}
+                    disabled={isClearingData || !confirmDanger || dangerZonePassword !== 'Admin@2026'}
+                    className="flex items-center justify-center gap-2 p-4 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all border border-red-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    {isClearingData ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                    Clear All Orders
+                  </button>
+                  <button
+                    onClick={handleClearCustomers}
+                    disabled={isClearingData || !confirmDanger || dangerZonePassword !== 'Admin@2026'}
+                    className="flex items-center justify-center gap-2 p-4 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all border border-red-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    {isClearingData ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserX className="w-5 h-5" />}
+                    Clear All Customers
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1092,32 +1789,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   <span className="text-xl font-bold">Total: ₹{retailOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0)}</span>
                   <button
                     onClick={async () => {
+                      if (!settings) return;
                       const totalAmount = retailOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0);
                       const totalQuantity = retailOrder.items.reduce((s, i) => s + i.quantity, 0);
+                      const nextOrderNumber = (settings.lastOrderNumber || 10000) + 1;
+                      
                       const newOrder = {
                         ...retailOrder,
                         customerId: 'retail',
                         totalAmount,
                         totalQuantity,
                         status: 'pending',
-                        createdAt: new Date().toISOString()
+                        orderNumber: nextOrderNumber
                       };
                       
-                      await dbService.addDocument('orders', newOrder);
+                      try {
+                        await dbService.addDocument('orders', newOrder);
+                        
+                        // Increment order counter
+                        await dbService.incrementField('settings', 'global', 'lastOrderNumber', 1);
 
-                      // Send WhatsApp notification for retail order
-                      if (settings?.metaWhatsAppConfig?.enabled && retailOrder.mobile) {
-                        const itemsSummary = retailOrder.items.map(i => `${i.itemName} (${i.service}) x ${i.quantity}`).join(', ');
-                        await sendMetaWhatsAppMessage(
-                          settings.metaWhatsAppConfig,
-                          retailOrder.mobile,
-                          retailOrder.customerName,
-                          `New Retail Order: ${itemsSummary}. Total: ₹${totalAmount}`
-                        );
+                        // Send WhatsApp notification for retail order
+                        if (settings?.metaWhatsAppConfig?.enabled && retailOrder.mobile) {
+                          const itemsSummary = retailOrder.items.map(i => `${i.itemName} (${i.service}) x ${i.quantity}`).join(', ');
+                          await sendMetaWhatsAppMessage(
+                            settings.metaWhatsAppConfig,
+                            retailOrder.mobile,
+                            retailOrder.customerName,
+                            `New Retail Order: ${itemsSummary}. Total: ₹${totalAmount}`
+                          );
+                        }
+
+                        setRetailOrder({ customerName: '', mobile: '', address: '', items: [] });
+                        setActiveTab('orders');
+                      } catch (err) {
+                        console.error('Failed to create retail order:', err);
+                        alert('Failed to create order. Please try again.');
                       }
-
-                      setRetailOrder({ customerName: '', mobile: '', address: '', items: [] });
-                      setActiveTab('orders');
                     }}
                     className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100"
                   >
@@ -1127,6 +1835,241 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'payments' && (
+        <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Pending Payments</h2>
+              <p className="text-gray-500">Track and manage customer balances</p>
+            </div>
+            <div className="bg-red-50 px-6 py-3 rounded-2xl border border-red-100">
+              <p className="text-xs font-bold text-red-600 uppercase tracking-wider">Total Outstanding</p>
+              <p className="text-2xl font-black text-red-700">₹{stats.totalPendingAmount}</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search by Name, Mobile, or Order #"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  value={paymentSearch}
+                  onChange={(e) => setPaymentSearch(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 border-bottom border-gray-100">
+                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Order Info</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Customer</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Bill</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Paid</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Pending</th>
+                    <th className="p-6 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredPayments.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="p-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-gray-900">#{order.orderNumber}</span>
+                          <span className="text-xs text-gray-400">
+                            {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-gray-900">{order.customerName}</span>
+                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <Phone className="w-3 h-3" /> {order.mobile}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-6 text-sm font-bold text-gray-900">₹{order.totalAmount}</td>
+                      <td className="p-6 text-sm font-bold text-emerald-600">₹{order.paidAmount || 0}</td>
+                      <td className="p-6">
+                        <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100">
+                          ₹{order.pendingAmount}
+                        </span>
+                      </td>
+                      <td className="p-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedOrderForPayment(order);
+                              setPaymentReceived(order.pendingAmount || 0);
+                              setShowPaymentModal(true);
+                            }}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Record Payment"
+                          >
+                            <CreditCard className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleSendPaymentReminder(order)}
+                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                            title="Send Reminder"
+                          >
+                            <BellRing className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredPayments.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-12 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
+                            <CheckCircle2 className="w-8 h-8" />
+                          </div>
+                          <p className="text-gray-500 font-medium">No pending payments found. Great job!</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'profile' && (
+        <div className="max-w-2xl mx-auto space-y-8">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-100">
+              {userData?.name?.[0] || 'G'}
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Admin Profile</h2>
+              <p className="text-gray-500">Manage your personal information and security</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleUpdateProfile} className="space-y-6">
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-indigo-500" />
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="Enter your name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-indigo-500" />
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    disabled
+                    className="w-full p-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
+                    value={userData?.email || ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-indigo-500" />
+                    Mobile Number
+                  </label>
+                  <input
+                    type="tel"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    value={profileMobile}
+                    onChange={(e) => setProfileMobile(e.target.value)}
+                    placeholder="Enter mobile number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-indigo-600" />
+                Change Password
+              </h3>
+              <p className="text-xs text-gray-500">Leave these fields blank if you don't want to change your password.</p>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700">Current Password</label>
+                  <input
+                    type="password"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">New Password</label>
+                    <input
+                      type="password"
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Confirm New Password</label>
+                    <input
+                      type="password"
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {profileError && (
+              <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-sm text-red-600 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                {profileError}
+              </div>
+            )}
+            {profileSuccess && (
+              <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-sm text-emerald-600 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5" />
+                {profileSuccess}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={profileLoading}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 transition-all"
+            >
+              {profileLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
+              Update Profile & Password
+            </button>
+          </form>
         </div>
       )}
 
@@ -1145,24 +2088,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {socialLinks.map((link) => (
               <div key={link.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                    {getSocialIcon(link.platform)}
+                  </div>
                   <div className="flex-1 space-y-4">
-                    <input
-                      type="text"
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
-                      value={link.platform}
-                      onChange={(e) => dbService.updateDocument('socialLinks', link.id, { platform: e.target.value })}
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                        value={link.platform}
+                        onChange={(e) => dbService.updateDocument('socialLinks', link.id, { platform: e.target.value })}
+                        placeholder="Platform (e.g. Instagram, WhatsApp, Map)"
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                        {['Instagram', 'WhatsApp', 'Facebook', 'Map', 'YouTube'].map(p => (
+                          <button
+                            key={p}
+                            onClick={() => dbService.updateDocument('socialLinks', link.id, { platform: p })}
+                            className="text-[10px] px-1.5 py-0.5 bg-white border border-gray-200 rounded hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <input
                       type="text"
                       className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                       value={link.url}
                       onChange={(e) => dbService.updateDocument('socialLinks', link.id, { url: e.target.value })}
+                      placeholder="URL (e.g. https://instagram.com/yourname)"
                     />
                   </div>
                   <button
                     onClick={() => dbService.deleteDocument('socialLinks', link.id)}
-                    className="ml-4 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
@@ -1172,6 +2133,100 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showPaymentModal && selectedOrderForPayment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="bg-indigo-600 p-6 text-white">
+                <h3 className="text-xl font-bold">Record Payment</h3>
+                <p className="text-indigo-100 text-sm">Order #{selectedOrderForPayment.orderNumber} - {selectedOrderForPayment.customerName}</p>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Bill</p>
+                    <p className="text-xl font-black text-gray-900">₹{selectedOrderForPayment.totalAmount}</p>
+                  </div>
+                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Already Paid</p>
+                    <p className="text-xl font-black text-emerald-700">₹{selectedOrderForPayment.paidAmount || 0}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Amount Received Now</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">₹</span>
+                      <input
+                        type="number"
+                        className="w-full pl-8 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-xl font-black"
+                        value={paymentReceived}
+                        onChange={(e) => setPaymentReceived(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Payment Method</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Cash', 'GPay', 'UPI'].map((method) => (
+                        <button
+                          key={method}
+                          onClick={() => setPaymentMethod(method as any)}
+                          className={`py-3 rounded-xl font-bold text-sm transition-all ${
+                            paymentMethod === method
+                              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          {method}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-amber-700">Remaining Balance</span>
+                      <span className="text-lg font-black text-amber-800">
+                        ₹{Math.max(0, selectedOrderForPayment.totalAmount - (selectedOrderForPayment.paidAmount || 0) - paymentReceived)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowPaymentModal(false);
+                      setSelectedOrderForPayment(null);
+                    }}
+                    className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmPayment}
+                    disabled={paymentLoading}
+                    className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {paymentLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                    Confirm & Deliver
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 };

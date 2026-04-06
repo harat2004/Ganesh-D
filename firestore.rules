@@ -6,10 +6,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isPrimaryAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "ganeshdrycleaner@gmail.com" || 
+              request.auth.token.email == "shreecharbhujadigitalstudio@gmail.com");
+    }
+
     function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "shreecharbhujadigitalstudio@gmail.com" && request.auth.token.email_verified == true));
+      let userDoc = /databases/$(database)/documents/users/$(request.auth.uid);
+      // Use getAfter to avoid recursion issues and check the latest state
+      return isPrimaryAdmin() || (isAuthenticated() && exists(userDoc) && get(userDoc).data.role == 'admin');
     }
 
     function isOwner(userId) {
@@ -35,15 +41,24 @@ service cloud.firestore {
              data.items is list &&
              data.totalQuantity is number &&
              data.totalAmount is number &&
-             data.status in ['pending', 'processing', 'completed'];
+             data.status in ['pending', 'receive', 'processing', 'ready', 'delivery'] &&
+             data.orderNumber is number &&
+             (!('paidAmount' in data) || data.paidAmount is number) &&
+             (!('pendingAmount' in data) || data.pendingAmount is number) &&
+             (!('paymentMethod' in data) || data.paymentMethod in ['Cash', 'GPay', 'Other']) &&
+             (!('paymentStatus' in data) || data.paymentStatus in ['pending', 'partial', 'paid']) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
     }
 
     match /users/{userId} {
+      // isOwner must be first to break recursion in isAdmin()
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    (isOwner(userId) && request.resource.data.role == 'customer' || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+      allow create: if isAuthenticated() && isOwner(userId) && 
+                    (request.resource.data.role == 'customer' || isAdmin());
+      allow update: if isAuthenticated() && 
                     ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
     }
 
     match /items/{itemId} {
@@ -61,7 +76,10 @@ service cloud.firestore {
 
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && docId == 'global' && 
+                    !request.resource.data.diff(resource.data).affectedKeys().hasAny(['shopName', 'logoUrl', 'address', 'contactNumber', 'adminEmail']));
+      allow delete: if isAdmin();
     }
 
     match /socialLinks/{linkId} {
