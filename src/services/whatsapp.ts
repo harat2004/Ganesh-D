@@ -4,10 +4,9 @@ export const sendCustomApiMessage = async (
   config: ApiConfig,
   to: string,
   message: string
-) => {
+): Promise<{ success: boolean; error?: string }> => {
   if (!config.isConnected || !config.accessToken || !config.baseUrl) {
-    console.warn('Custom API is not fully configured or connected.');
-    return false;
+    return { success: false, error: 'Custom API is not fully configured or connected.' };
   }
 
   const cleanPhone = to.replace(/\D/g, '');
@@ -26,11 +25,23 @@ export const sendCustomApiMessage = async (
     });
     
     const data = await response.json();
+    
+    if (!response.ok) {
+      console.error('Custom API Proxy Error Response:', data);
+      return { success: false, error: data.details || data.error || 'Proxy server error' };
+    }
+
     console.log('Custom API Message Sent via Proxy:', data);
-    return true;
-  } catch (error) {
+    // Check if the actual API returned an error (some APIs return 200 but with error in body)
+    if (data.status === 'error' || data.success === false || data.error) {
+      console.error('Custom API Provider Error:', data);
+      return { success: false, error: data.message || data.error || 'API Provider error' };
+    }
+
+    return { success: true };
+  } catch (error: any) {
     console.error('Error sending Custom API message via proxy:', error);
-    return false;
+    return { success: false, error: error.message || 'Network error' };
   }
 };
 

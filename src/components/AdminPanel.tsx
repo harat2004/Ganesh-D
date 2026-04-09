@@ -591,17 +591,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
     }
     setIsTestingApi(true);
     try {
-      const success = await sendCustomApiMessage(
+      const result = await sendCustomApiMessage(
         tempSettings.apiConfig,
         tempSettings.contactNumber,
         "Test message from your Admin Panel! API is working correctly."
       );
-      if (success) {
+      if (result.success) {
         alert('Test message sent successfully!');
       } else {
-        alert('Failed to send test message. Check console for details.');
+        alert(`Failed to send test message: ${result.error || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Test API Error:', error);
       alert('An error occurred while testing.');
     } finally {

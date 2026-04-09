@@ -183,24 +183,38 @@ async function startServer() {
     }
 
     try {
-      const response = await fetch(config.baseUrl, {
+      let targetUrl = config.baseUrl;
+      if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+        targetUrl = 'https://' + targetUrl;
+      }
+
+      console.log(`Proxying WhatsApp to: ${targetUrl} for number: ${to}`);
+      const payload = {
+        vendor_uid: config.vendorUid,
+        to: to,
+        message: message
+      };
+      console.log('Sending Payload to External API:', JSON.stringify(payload, null, 2));
+
+      const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          vendor_uid: config.vendorUid,
-          to: to,
-          message: message
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
-      res.json(data);
+      console.log('External API Response:', data);
+      res.status(response.status).json(data);
     } catch (error: any) {
       console.error('Custom WhatsApp Proxy Error:', error);
-      res.status(500).json({ error: 'Failed to send WhatsApp message via proxy', details: error.message });
+      res.status(500).json({ 
+        error: 'Failed to send WhatsApp message via proxy', 
+        details: error.message,
+        baseUrl: config.baseUrl 
+      });
     }
   });
 
