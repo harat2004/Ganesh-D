@@ -41,6 +41,9 @@ export const sendCustomApiMessage = async (
     return { success: true };
   } catch (error: any) {
     console.error('Error sending Custom API message via proxy:', error);
+    // Log the error name and message specifically
+    console.log('Error Name:', error.name);
+    console.log('Error Message:', error.message);
     return { success: false, error: error.message || 'Network error' };
   }
 };

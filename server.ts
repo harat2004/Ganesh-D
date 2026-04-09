@@ -183,14 +183,25 @@ async function startServer() {
     }
 
     try {
-      let targetUrl = config.baseUrl;
+      const baseUrl = (config.baseUrl || '').trim();
+      const accessToken = (config.accessToken || '').trim();
+      const vendorUid = (config.vendorUid || '').trim();
+
+      let targetUrl = baseUrl;
       if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
         targetUrl = 'https://' + targetUrl;
       }
 
+      // Basic URL validation
+      try {
+        new URL(targetUrl);
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid Base URL format', details: targetUrl });
+      }
+
       console.log(`Proxying WhatsApp to: ${targetUrl} for number: ${to}`);
       const payload = {
-        vendor_uid: config.vendorUid,
+        vendor_uid: vendorUid,
         to: to,
         message: message
       };
@@ -199,7 +210,7 @@ async function startServer() {
       const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${config.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
@@ -226,16 +237,21 @@ async function startServer() {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    const url = `https://graph.facebook.com/v17.0/${config.phoneNumberId}/messages`;
+    const accessToken = (config.accessToken || '').trim();
+    const phoneNumberId = (config.phoneNumberId || '').trim();
+    const templateName = (config.templateName || '').trim();
+    const languageCode = (config.languageCode || 'en_US').trim();
+
+    const url = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
     
     const payload = {
       messaging_product: "whatsapp",
       to: to,
       type: "template",
       template: {
-        name: config.templateName,
+        name: templateName,
         language: {
-          code: config.languageCode || "en_US"
+          code: languageCode
         },
         components: [
           {
@@ -253,7 +269,7 @@ async function startServer() {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${config.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
