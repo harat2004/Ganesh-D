@@ -1721,6 +1721,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                       </button>
                     )}
                   </div>
+                  
+                  {tempSettings.apiConfig?.isConnected && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium animate-pulse">
+                      API Connected! Don't forget to click "Save All Changes" at the top to keep these settings.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -2052,7 +2058,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
 *Total:* ₹${totalAmount}
 *Items:* ${itemsSummary}`;
                             
-                            sendCustomApiMessage(settings.apiConfig, settings.contactNumber, adminMessage);
+                            await sendCustomApiMessage(settings.apiConfig, settings.contactNumber, adminMessage);
                           }
 
                           // 2. Send to Customer
@@ -2063,7 +2069,7 @@ Hello ${retailOrder.customerName}, your order #${nextOrderNumber} has been recei
 *Status:* Pending
 Thank you for choosing ${settings.shopName || 'us'}!`;
                             
-                            sendCustomApiMessage(settings.apiConfig, retailOrder.mobile, customerMessage);
+                            await sendCustomApiMessage(settings.apiConfig, retailOrder.mobile, customerMessage);
                           }
                         }
 

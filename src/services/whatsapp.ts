@@ -13,24 +13,23 @@ export const sendCustomApiMessage = async (
   const cleanPhone = to.replace(/\D/g, '');
   
   try {
-    const response = await fetch(config.baseUrl, {
+    const response = await fetch('/api/send-custom-whatsapp', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.accessToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        vendor_uid: config.vendorUid,
+        config,
         to: cleanPhone,
         message: message
       })
     });
     
     const data = await response.json();
-    console.log('Custom API Message Sent:', data);
+    console.log('Custom API Message Sent via Proxy:', data);
     return true;
   } catch (error) {
-    console.error('Error sending Custom API message:', error);
+    console.error('Error sending Custom API message via proxy:', error);
     return false;
   }
 };
@@ -49,49 +48,30 @@ export const sendMetaWhatsAppMessage = async (
   // Meta API expects phone number without '+' and with country code
   const cleanPhone = to.replace(/\D/g, '');
   
-  const url = `https://graph.facebook.com/v17.0/${config.phoneNumberId}/messages`;
-  
-  const payload = {
-    messaging_product: "whatsapp",
-    to: cleanPhone,
-    type: "template",
-    template: {
-      name: config.templateName,
-      language: {
-        code: config.languageCode || "en_US"
-      },
-      components: [
-        {
-          type: "body",
-          parameters: [
-            { type: "text", text: customerName },
-            { type: "text", text: orderSummary }
-          ]
-        }
-      ]
-    }
-  };
-
   try {
-    const response = await fetch(url, {
+    const response = await fetch('/api/send-meta-whatsapp', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        config,
+        to: cleanPhone,
+        customerName,
+        orderSummary
+      })
     });
     
     const data = await response.json();
     if (data.error) {
-      console.error('Meta WhatsApp API Error:', data.error);
+      console.error('Meta WhatsApp API Error via Proxy:', data.error);
       return false;
     }
     
-    console.log('Meta WhatsApp Message Sent:', data);
+    console.log('Meta WhatsApp Message Sent via Proxy:', data);
     return true;
   } catch (error) {
-    console.error('Error sending Meta WhatsApp message:', error);
+    console.error('Error sending Meta WhatsApp message via proxy:', error);
     return false;
   }
 };

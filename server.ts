@@ -174,6 +174,85 @@ async function startServer() {
     }
   });
   
+  // Proxy API for Custom WhatsApp to bypass CORS
+  app.post('/api/send-custom-whatsapp', async (req, res) => {
+    const { config, to, message } = req.body;
+
+    if (!config || !config.baseUrl || !config.accessToken || !to || !message) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    try {
+      const response = await fetch(config.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          vendor_uid: config.vendorUid,
+          to: to,
+          message: message
+        })
+      });
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error('Custom WhatsApp Proxy Error:', error);
+      res.status(500).json({ error: 'Failed to send WhatsApp message via proxy', details: error.message });
+    }
+  });
+
+  // Proxy API for Meta WhatsApp to bypass CORS
+  app.post('/api/send-meta-whatsapp', async (req, res) => {
+    const { config, to, customerName, orderSummary } = req.body;
+
+    if (!config || !config.accessToken || !config.phoneNumberId || !to) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    const url = `https://graph.facebook.com/v17.0/${config.phoneNumberId}/messages`;
+    
+    const payload = {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "template",
+      template: {
+        name: config.templateName,
+        language: {
+          code: config.languageCode || "en_US"
+        },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: customerName },
+              { type: "text", text: orderSummary }
+            ]
+          }
+        ]
+      }
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error('Meta WhatsApp Proxy Error:', error);
+      res.status(500).json({ error: 'Failed to send Meta WhatsApp message via proxy', details: error.message });
+    }
+  });
+
   // API to send Order Status Update
   app.post('/api/send-status-update', async (req, res) => {
     const { customerEmail, orderData, newStatus } = req.body;
