@@ -9,7 +9,7 @@ import { auth } from '../firebase';
 import { User, Settings, Order, Item, SocialLink, OrderStatus } from '../types';
 import { ADMIN_EMAILS } from '../constants';
 import { dbService } from '../services/db';
-import { sendMetaWhatsAppMessage } from '../services/whatsapp';
+import { sendMetaWhatsAppMessage, sendCustomApiMessage } from '../services/whatsapp';
 import Layout from './Layout';
 import { 
   LayoutDashboard, 
@@ -45,6 +45,7 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   MessageCircle,
+  MessageSquare,
   Phone,
   MapPin,
   Calendar,
@@ -409,7 +410,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
 
       const statusText = statusLabels[status] || status;
 
-      // 1. WhatsApp Notification
+      // 1. Custom API Notification (Automatic)
+      if (settings?.apiConfig?.isConnected) {
+        const customMessage = `*Order Status Updated!*
+*Order #:* ${order.orderNumber}
+*Status:* ${statusText}
+*Customer:* ${order.customerName}`;
+        
+        await sendCustomApiMessage(
+          settings.apiConfig,
+          order.mobile,
+          customMessage
+        );
+      }
+
+      // 2. WhatsApp Notification (Meta)
       if (settings?.metaWhatsAppConfig?.enabled) {
         await sendMetaWhatsAppMessage(
           settings.metaWhatsAppConfig,
@@ -545,6 +560,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
   };
 
   const [isConnectingApi, setIsConnectingApi] = useState(false);
+  const [isTestingApi, setIsTestingApi] = useState(false);
 
   const handleConnectApi = async () => {
     if (!tempSettings?.apiConfig) return;
@@ -565,6 +581,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
       alert('API Connection Failed. Please check your credentials.');
     } finally {
       setIsConnectingApi(false);
+    }
+  };
+
+  const handleTestApiMessage = async () => {
+    if (!tempSettings?.apiConfig || !tempSettings.contactNumber) {
+      alert('Please configure API and Contact Number first.');
+      return;
+    }
+    setIsTestingApi(true);
+    try {
+      const success = await sendCustomApiMessage(
+        tempSettings.apiConfig,
+        tempSettings.contactNumber,
+        "Test message from your Admin Panel! API is working correctly."
+      );
+      if (success) {
+        alert('Test message sent successfully!');
+      } else {
+        alert('Failed to send test message. Check console for details.');
+      }
+    } catch (error) {
+      console.error('Test API Error:', error);
+      alert('An error occurred while testing.');
+    } finally {
+      setIsTestingApi(false);
     }
   };
 
@@ -1649,24 +1690,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                       placeholder="Enter Vendor UID"
                     />
                   </div>
-                  <button
-                    onClick={handleConnectApi}
-                    disabled={isConnectingApi || !tempSettings.apiConfig?.accessToken}
-                    className={`w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
-                      tempSettings.apiConfig?.isConnected 
-                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-none' 
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none'
-                    } disabled:opacity-50`}
-                  >
-                    {isConnectingApi ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : tempSettings.apiConfig?.isConnected ? (
-                      <CheckCircle2 className="w-5 h-5" />
-                    ) : (
-                      <LinkIcon className="w-5 h-5" />
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleConnectApi}
+                      disabled={isConnectingApi || !tempSettings.apiConfig?.accessToken}
+                      className={`flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
+                        tempSettings.apiConfig?.isConnected 
+                          ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-none' 
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none'
+                      } disabled:opacity-50`}
+                    >
+                      {isConnectingApi ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : tempSettings.apiConfig?.isConnected ? (
+                        <CheckCircle2 className="w-5 h-5" />
+                      ) : (
+                        <LinkIcon className="w-5 h-5" />
+                      )}
+                      {isConnectingApi ? 'Connecting...' : tempSettings.apiConfig?.isConnected ? 'Connected' : 'Connect API'}
+                    </button>
+                    
+                    {tempSettings.apiConfig?.isConnected && (
+                      <button
+                        onClick={handleTestApiMessage}
+                        disabled={isConnectingApi}
+                        className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center gap-2"
+                      >
+                        <MessageSquare className="w-5 h-5" />
+                        Test Message
+                      </button>
                     )}
-                    {isConnectingApi ? 'Connecting...' : tempSettings.apiConfig?.isConnected ? 'Connected' : 'Connect API'}
-                  </button>
+                  </div>
                 </div>
               </div>
 
@@ -1985,8 +2039,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                         await dbService.incrementField('settings', 'global', 'lastOrderNumber', 1);
 
                         // Send WhatsApp notification for retail order
+                        const itemsSummary = retailOrder.items.map(i => `${i.itemName} (${i.service}) x ${i.quantity}`).join(', ');
+
+                        // Custom API Notification (Automatic)
+                        if (settings?.apiConfig?.isConnected) {
+                          // 1. Send to Admin
+                          if (settings.contactNumber) {
+                            const adminMessage = `*New Retail Order Received!*
+*Order #:* ${nextOrderNumber}
+*Customer:* ${retailOrder.customerName}
+*Mobile:* ${retailOrder.mobile}
+*Total:* ₹${totalAmount}
+*Items:* ${itemsSummary}`;
+                            
+                            sendCustomApiMessage(settings.apiConfig, settings.contactNumber, adminMessage);
+                          }
+
+                          // 2. Send to Customer
+                          if (retailOrder.mobile) {
+                            const customerMessage = `*Order Confirmed!*
+Hello ${retailOrder.customerName}, your order #${nextOrderNumber} has been received successfully.
+*Total Amount:* ₹${totalAmount}
+*Status:* Pending
+Thank you for choosing ${settings.shopName || 'us'}!`;
+                            
+                            sendCustomApiMessage(settings.apiConfig, retailOrder.mobile, customerMessage);
+                          }
+                        }
+
                         if (settings?.metaWhatsAppConfig?.enabled && retailOrder.mobile) {
-                          const itemsSummary = retailOrder.items.map(i => `${i.itemName} (${i.service}) x ${i.quantity}`).join(', ');
                           await sendMetaWhatsAppMessage(
                             settings.metaWhatsAppConfig,
                             retailOrder.mobile,

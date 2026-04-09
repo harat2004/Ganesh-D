@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Settings, Order, Item, OrderItem, SocialLink } from '../types';
 import { dbService } from '../services/db';
-import { sendMetaWhatsAppMessage } from '../services/whatsapp';
+import { sendMetaWhatsAppMessage, sendCustomApiMessage } from '../services/whatsapp';
 import Layout from './Layout';
 import { 
   LayoutDashboard, 
@@ -231,6 +231,34 @@ const CustomerPanel: React.FC<CustomerPanelProps> = ({
       
       // WhatsApp Notification
       const orderSummary = currentItems.map(item => `${item.itemName} (${item.service}) x ${item.quantity}`).join(', ');
+      
+      // Custom API Notification (Automatic)
+      if (settings?.apiConfig?.isConnected) {
+        console.log('Sending WhatsApp via Custom API...');
+        
+        // 1. Send to Admin
+        if (settings.contactNumber) {
+          const adminMessage = `*New Order Received!*
+*Order #:* ${nextOrderNumber}
+*Customer:* ${userData.name}
+*Mobile:* ${mobile}
+*Total:* ₹${totalAmount}
+*Items:* ${orderSummary}`;
+          
+          await sendCustomApiMessage(settings.apiConfig, settings.contactNumber, adminMessage);
+        }
+
+        // 2. Send to Customer
+        if (mobile) {
+          const customerMessage = `*Order Confirmed!*
+Hello ${userData.name}, your order #${nextOrderNumber} has been received successfully.
+*Total Amount:* ₹${totalAmount}
+*Status:* Pending
+Thank you for choosing ${settings.shopName || 'us'}!`;
+          
+          await sendCustomApiMessage(settings.apiConfig, mobile, customerMessage);
+        }
+      }
       
       if (settings?.metaWhatsAppConfig?.enabled && settings.contactNumber) {
         console.log('Sending WhatsApp via Meta API...');

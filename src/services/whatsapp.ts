@@ -1,4 +1,39 @@
-import { MetaWhatsAppConfig } from '../types';
+import { MetaWhatsAppConfig, ApiConfig } from '../types';
+
+export const sendCustomApiMessage = async (
+  config: ApiConfig,
+  to: string,
+  message: string
+) => {
+  if (!config.isConnected || !config.accessToken || !config.baseUrl) {
+    console.warn('Custom API is not fully configured or connected.');
+    return false;
+  }
+
+  const cleanPhone = to.replace(/\D/g, '');
+  
+  try {
+    const response = await fetch(config.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        vendor_uid: config.vendorUid,
+        to: cleanPhone,
+        message: message
+      })
+    });
+    
+    const data = await response.json();
+    console.log('Custom API Message Sent:', data);
+    return true;
+  } catch (error) {
+    console.error('Error sending Custom API message:', error);
+    return false;
+  }
+};
 
 export const sendMetaWhatsAppMessage = async (
   config: MetaWhatsAppConfig, 
