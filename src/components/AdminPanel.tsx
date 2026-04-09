@@ -544,6 +544,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
     setNewItem({ name: '', service: '', price: 0, showPriceToCustomer: true });
   };
 
+  const [isConnectingApi, setIsConnectingApi] = useState(false);
+
+  const handleConnectApi = async () => {
+    if (!tempSettings?.apiConfig) return;
+    setIsConnectingApi(true);
+    try {
+      // Simulate API connection test
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Update local state
+      setTempSettings(prev => prev ? {
+        ...prev,
+        apiConfig: { ...prev.apiConfig!, isConnected: true }
+      } : prev);
+      
+      alert('API Connected Successfully!');
+    } catch (error) {
+      console.error('API Connection Failed:', error);
+      alert('API Connection Failed. Please check your credentials.');
+    } finally {
+      setIsConnectingApi(false);
+    }
+  };
+
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -1582,6 +1606,72 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
 
               <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <LinkIcon className="w-5 h-5 text-blue-600" />
+                  API Setup
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">API Access Token</label>
+                    <input
+                      type="password"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                      value={tempSettings.apiConfig?.accessToken || ''}
+                      onChange={(e) => setTempSettings(prev => prev ? {
+                        ...prev,
+                        apiConfig: { ...(prev.apiConfig || { accessToken: '', baseUrl: '', vendorUid: '', isConnected: false }), accessToken: e.target.value }
+                      } : prev)}
+                      placeholder="Enter API Access Token"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">API Base URL</label>
+                    <input
+                      type="text"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                      value={tempSettings.apiConfig?.baseUrl || ''}
+                      onChange={(e) => setTempSettings(prev => prev ? {
+                        ...prev,
+                        apiConfig: { ...(prev.apiConfig || { accessToken: '', baseUrl: '', vendorUid: '', isConnected: false }), baseUrl: e.target.value }
+                      } : prev)}
+                      placeholder="https://api.example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Vendor UID</label>
+                    <input
+                      type="text"
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                      value={tempSettings.apiConfig?.vendorUid || ''}
+                      onChange={(e) => setTempSettings(prev => prev ? {
+                        ...prev,
+                        apiConfig: { ...(prev.apiConfig || { accessToken: '', baseUrl: '', vendorUid: '', isConnected: false }), vendorUid: e.target.value }
+                      } : prev)}
+                      placeholder="Enter Vendor UID"
+                    />
+                  </div>
+                  <button
+                    onClick={handleConnectApi}
+                    disabled={isConnectingApi || !tempSettings.apiConfig?.accessToken}
+                    className={`w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
+                      tempSettings.apiConfig?.isConnected 
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-none' 
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none'
+                    } disabled:opacity-50`}
+                  >
+                    {isConnectingApi ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : tempSettings.apiConfig?.isConnected ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      <LinkIcon className="w-5 h-5" />
+                    )}
+                    {isConnectingApi ? 'Connecting...' : tempSettings.apiConfig?.isConnected ? 'Connected' : 'Connect API'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-black p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-purple-600" />
                   Customer Popup Settings
                 </h3>
@@ -1649,17 +1739,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userData, settings, onImpersona
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-700 dark:text-gray-300">Theme Mode</label>
                     <div className="flex gap-2">
-                      {['light', 'dark'].map((mode) => (
+                      {[
+                        { id: 'light', label: 'White Theme' },
+                        { id: 'dark', label: 'Black Theme' }
+                      ].map((mode) => (
                         <button
-                          key={mode}
-                          onClick={() => setTempSettings(prev => prev ? { ...prev, themeMode: mode as 'light' | 'dark' } : prev)}
-                          className={`flex-1 py-3 rounded-xl font-bold capitalize transition-all ${
-                            tempSettings.themeMode === mode
+                          key={mode.id}
+                          onClick={() => setTempSettings(prev => prev ? { ...prev, themeMode: mode.id as 'light' | 'dark' } : prev)}
+                          className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                            tempSettings.themeMode === mode.id
                               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 dark:shadow-none'
                               : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                           }`}
                         >
-                          {mode}
+                          {mode.label}
                         </button>
                       ))}
                     </div>

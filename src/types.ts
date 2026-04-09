@@ -66,6 +66,13 @@ export interface MetaWhatsAppConfig {
   enabled: boolean;
 }
 
+export interface ApiConfig {
+  accessToken: string;
+  baseUrl: string;
+  vendorUid: string;
+  isConnected: boolean;
+}
+
 export interface Settings {
   shopName: string;
   logoUrl: string;
@@ -73,6 +80,7 @@ export interface Settings {
   contactNumber: string;
   whatsappApiUrl: string;
   metaWhatsAppConfig?: MetaWhatsAppConfig;
+  apiConfig?: ApiConfig;
   popupConfig: PopupConfig;
   themeType: 'type1' | 'type2' | 'type3';
   themeMode?: 'light' | 'dark';
